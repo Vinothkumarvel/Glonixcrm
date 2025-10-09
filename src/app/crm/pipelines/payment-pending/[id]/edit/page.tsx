@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { PaymentPendingItem } from "../../page";
 
+// Corrected: The form data reflects the fields being edited
 type EditFormData = {
     company_name: string;
     department: string;
     order_value: string;
-    advance_payment: string;
+    advance_payment: string; // This will hold the 'amount' as a string for the input
     expense: string;
 };
 
@@ -28,7 +29,8 @@ export default function EditPaymentPendingPage() {
                     company_name: itemToEdit.company_name,
                     department: itemToEdit.department,
                     order_value: String(itemToEdit.order_value || ''),
-                    advance_payment: String(itemToEdit.advance_payment || ''),
+                    // Corrected: Properly access the 'amount' from the advance_payment object
+                    advance_payment: String(itemToEdit.advance_payment?.amount || ''),
                     expense: String(itemToEdit.expense || ''),
                 });
             }
@@ -36,8 +38,8 @@ export default function EditPaymentPendingPage() {
     }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!formData) return;
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        // Best practice: Use functional update to avoid stale state
+        setFormData(prev => prev ? { ...prev, [e.target.name]: e.target.value } : null);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -45,7 +47,8 @@ export default function EditPaymentPendingPage() {
         if (!formData) return;
 
         const storedData = localStorage.getItem("paymentPendingData") || "[]";
-        let data: PaymentPendingItem[] = JSON.parse(storedData);
+        // Corrected: 'data' is never reassigned, so use 'const'
+        const data: PaymentPendingItem[] = JSON.parse(storedData);
         
         const updatedData = data.map(item => {
             if (item.id === id) {
@@ -62,7 +65,11 @@ export default function EditPaymentPendingPage() {
                     company_name: formData.company_name,
                     department: formData.department,
                     order_value: orderValueNum,
-                    advance_payment: advancePaymentNum,
+                    // Corrected: Update the nested 'amount' property instead of replacing the object
+                    advance_payment: {
+                        ...item.advance_payment,
+                        amount: advancePaymentNum
+                    },
                     expense: expenseNum,
                     profit,
                     balance_due,
