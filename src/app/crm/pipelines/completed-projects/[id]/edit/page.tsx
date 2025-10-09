@@ -36,8 +36,8 @@ export default function EditCompletedProjectPage() {
     }, [id]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!formData) return;
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData(prev => prev ? { ...prev, [name]: value } : null);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -45,7 +45,7 @@ export default function EditCompletedProjectPage() {
         if (!formData) return;
 
         const storedData = localStorage.getItem("completedProjectsData") || "[]";
-        let data: CompletedProject[] = JSON.parse(storedData);
+        const data: CompletedProject[] = JSON.parse(storedData);
         
         const updatedData = data.map(item => {
             if (item.id === id) {
@@ -106,3 +106,4 @@ export default function EditCompletedProjectPage() {
         </div>
     );
 }
+
