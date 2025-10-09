@@ -3,50 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import type { PreprocessItem, WorkingTimelineItem, ProjectTimelineItem } from "../../page";
+import { v4 as uuidv4 } from "uuid";
+import type { PreprocessItem } from "../../page";
 
-// --- UNIFIED TYPE DEFINITIONS ---
-export type WorkingTimelineItem = {
-    s_no: number;
-    description: string;
-    deadline: string;
-    status: "Completed" | "Over Due";
-    approved: "Yes" | "Rework";
-};
-
-export type ProjectTimelineItem = {
-    s_no: number;
-    description: string;
-    deadline: string;
-    status: "Completed" | "Over Due";
-    final_fileName?: string;
-};
-
-export type PreprocessItem = {
-    id: string;
-    date: string;
-    department: string;
-    company_name: string;
-    contact: string;
-    state: string;
-    deadline: string;
-    description: string;
-    fileName?: string;
-    source: string;
-    customer_notes: string;
-    order_value: number;
-    // Corrected: advance_payment is now an object
-    advance_payment: { amount: number; bank_details: string; date: string; };
-    expense: number;
-    profit: number;
-    balance_due: number;
-    subdeal_department?: string;
-    project_handled_by: string;
-    working_timeline: WorkingTimelineItem[];
-    project_timeline: ProjectTimelineItem[];
-    expense_bill_format: string;
-    approval_status: "Modification" | "Approved";
-};
+// Import types from parent page
+import type { WorkingTimelineItem, ProjectTimelineItem } from "../../page";
 
 export default function PreprocessListPage() {
     const router = useRouter();

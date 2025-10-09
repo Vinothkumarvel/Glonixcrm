@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
-import type { PostProcessItem } from "../postprocess/page";
 
 // --- 1. Corrected and Unified Type Definitions ---
 // These types now match the detailed structure used in the Edit/View pages.
@@ -37,7 +36,7 @@ export type PreprocessItem = {
   source: string;
   customer_notes: string;
   order_value: number;
-  advance_payment: number;
+  advance_payment: { amount: number; bank_details: string; date: string; };
   expense: number;
   profit: number;
   balance_due: number;
@@ -50,29 +49,17 @@ export type PreprocessItem = {
 };
 
 export default function PreprocessListPage() {
-<<<<<<< HEAD
+  const router = useRouter(); // Using Next.js router
   const [items, setItems] = useState<PreprocessItem[]>([]);
   
   const [dialogState, setDialogState] = useState({
     isOpen: false,
+    // Corrected: Added 'none' to the type definition
     mode: 'none' as 'delete' | 'none',
     item: null as PreprocessItem | null,
     title: '',
     message: '',
   });
-=======
-  const router = useRouter(); // Using Next.js router
-  const [items, setItems] = useState<PreprocessItem[]>([]);
-  
-  const [dialogState, setDialogState] = useState({
-    isOpen: false,
-    // Corrected: Added 'none' to the type definition
-    mode: 'none' as 'delete' | 'none',
-    item: null as PreprocessItem | null,
-    title: '',
-    message: '',
-  });
->>>>>>> f7b13be0609f839a5dd6781b8be833299ce7ba1b
 
   useEffect(() => {
     const storedData = localStorage.getItem("preprocessData");
@@ -80,13 +67,20 @@ export default function PreprocessListPage() {
       const parsedData: PreprocessItem[] = JSON.parse(storedData);
       // --- 2. More Robust Data Loading ---
       // This ensures that older data without the new fields won't crash the page.
-      const sanitizedData = parsedData.map(item => ({
-        ...item,
-        id: item.id || uuidv4(), // Ensure ID exists
-        working_timeline: Array.isArray(item.working_timeline) ? item.working_timeline : [],
-        project_timeline: Array.isArray(item.project_timeline) ? item.project_timeline : [],
-        approval_status: item.approval_status || "Modification",
-      }));
+      const sanitizedData = parsedData.map(item => {
+        let advancePaymentObject = item.advance_payment;
+        if (typeof item.advance_payment === 'number' || !item.advance_payment) {
+          advancePaymentObject = { amount: (item.advance_payment as unknown as number) || 0, bank_details: '', date: '' };
+        }
+        return {
+          ...item,
+          id: item.id || uuidv4(), // Ensure ID exists
+          advance_payment: advancePaymentObject,
+          working_timeline: Array.isArray(item.working_timeline) ? item.working_timeline : [],
+          project_timeline: Array.isArray(item.project_timeline) ? item.project_timeline : [],
+          approval_status: item.approval_status || "Modification",
+        };
+      });
       setItems(sanitizedData);
     }
   }, []);
