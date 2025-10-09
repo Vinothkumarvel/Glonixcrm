@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation"; // Correctly import useRouter
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 
@@ -40,7 +41,6 @@ export type Negotiation = {
     stage_history?: StageHistory[];
 };
 
-// Corrected: Replaced '[key: string]: any' with a more specific Omit type
 export type PreprocessItem = Omit<Negotiation, 'quotation_status' | 'closed_reason' | 'followup_datetime'> & {
     approval_status: "Pending";
 };
@@ -56,11 +56,13 @@ export type ClosedItem = {
 };
 
 export default function NegotiationListPage() {
+    const router = useRouter(); // Initialize router
     const [items, setItems] = useState<Negotiation[]>([]);
     
+    // Corrected: Add 'none' to the dialog mode type
     const [dialogState, setDialogState] = useState({
         isOpen: false,
-        mode: 'none' as 'delete' | 'convert' | 'close' | 'success',
+        mode: 'none' as 'delete' | 'convert' | 'close' | 'success' | 'none',
         item: null as Negotiation | null,
         title: '',
         message: '',
@@ -70,23 +72,18 @@ export default function NegotiationListPage() {
     useEffect(() => {
         const storedData = localStorage.getItem("negotiationData");
         if (storedData) {
-            // Corrected: Replaced 'any' with a more specific partial type
             const parsedData: Negotiation[] = JSON.parse(storedData).map((item: Partial<Negotiation>) => ({
                 ...item,
                 id: item.id || uuidv4(),
                 events: Array.isArray(item.events) ? item.events : [],
                 stage_history: Array.isArray(item.stage_history) ? item.stage_history : [],
-            } as Negotiation)); // Asserting the final shape after sanitization
+            } as Negotiation));
             setItems(parsedData);
         }
     }, []);
 
     const updateLocalStorage = (updatedItems: Negotiation[]) => {
         localStorage.setItem("negotiationData", JSON.stringify(updatedItems));
-    };
-
-    const navigate = (path: string) => {
-        window.location.href = path;
     };
     
     const closeDialog = () => {
@@ -118,7 +115,6 @@ export default function NegotiationListPage() {
         const itemToMove = dialogState.item;
         if (!itemToMove) return;
 
-        // Corrected: Handle unused variables by renaming them to '_'
         const { quotation_status: _, closed_reason: __, followup_datetime: ___, ...rest } = itemToMove;
         
         const newItem: PreprocessItem = {
@@ -210,8 +206,9 @@ export default function NegotiationListPage() {
                                         <div className="flex flex-wrap items-center gap-2">
                                             <button onClick={() => openConvertDialog(item)} className="px-3 py-1 text-xs font-semibold text-white bg-green-700 rounded-md hover:bg-green-800">Next</button>
                                             <button onClick={() => openCloseDialog(item)} className="px-3 py-1 text-xs font-semibold text-white bg-orange-500 rounded-md hover:bg-orange-600">Drop Dowm</button>
-                                            <button onClick={() => navigate(`/crm/pipelines/negotiation/${item.id}/view`)} className="px-3 py-1 text-xs font-semibold text-white bg-blue-500 rounded-md hover:bg-blue-600">view</button>
-                                            <button onClick={() => navigate(`/crm/pipelines/negotiation/${item.id}/edit`)} className="px-3 py-1 text-xs font-semibold text-white bg-yellow-500 rounded-md hover:bg-yellow-600">Edit</button>
+                                            {/* Corrected: Use router.push for navigation */}
+                                            <button onClick={() => router.push(`/crm/pipelines/negotiation/${item.id}/view`)} className="px-3 py-1 text-xs font-semibold text-white bg-blue-500 rounded-md hover:bg-blue-600">view</button>
+                                            <button onClick={() => router.push(`/crm/pipelines/negotiation/${item.id}/edit`)} className="px-3 py-1 text-xs font-semibold text-white bg-yellow-500 rounded-md hover:bg-yellow-600">Edit</button>
                                             <button onClick={() => openDeleteDialog(item)} className="px-3 py-1 text-xs font-semibold text-white bg-red-500 rounded-md hover:bg-red-600">Delete</button>
                                         </div>
                                     </td>
@@ -248,3 +245,4 @@ export default function NegotiationListPage() {
         </div>
     );
 }
+
