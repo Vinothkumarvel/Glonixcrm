@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { CompletedProject } from "../../page";
+import { CompletedProjectItem } from "../../page";
 
 type EditFormData = {
     company_name: string;
@@ -21,14 +21,15 @@ export default function EditCompletedProjectPage() {
     useEffect(() => {
         if (id) {
             const storedData = localStorage.getItem("completedProjectsData") || "[]";
-            const data: CompletedProject[] = JSON.parse(storedData);
+            const data: CompletedProjectItem[] = JSON.parse(storedData);
             const itemToEdit = data.find((item) => item.id === id);
             if (itemToEdit) {
                 setFormData({
                     company_name: itemToEdit.company_name,
                     department: itemToEdit.department,
                     order_value: String(itemToEdit.order_value || ''),
-                    advance_payment: String(itemToEdit.advance_payment || ''),
+                    // Correctly access the amount from the advance_payment object
+                    advance_payment: String(itemToEdit.advance_payment?.amount || ''),
                     expense: String(itemToEdit.expense || ''),
                 });
             }
@@ -45,11 +46,12 @@ export default function EditCompletedProjectPage() {
         if (!formData) return;
 
         const storedData = localStorage.getItem("completedProjectsData") || "[]";
-        const data: CompletedProject[] = JSON.parse(storedData);
+        const data: CompletedProjectItem[] = JSON.parse(storedData);
         
         const updatedData = data.map(item => {
             if (item.id === id) {
                 const orderValueNum = parseFloat(formData.order_value) || 0;
+                const advancePaymentNum = parseFloat(formData.advance_payment) || 0;
                 const expenseNum = parseFloat(formData.expense) || 0;
                 
                 // Recalculate profit
@@ -60,7 +62,11 @@ export default function EditCompletedProjectPage() {
                     company_name: formData.company_name,
                     department: formData.department,
                     order_value: orderValueNum,
-                    advance_payment: parseFloat(formData.advance_payment) || 0,
+                    // Preserve the advance_payment object structure
+                    advance_payment: {
+                        ...item.advance_payment,
+                        amount: advancePaymentNum,
+                    },
                     expense: expenseNum,
                     profit,
                 };
