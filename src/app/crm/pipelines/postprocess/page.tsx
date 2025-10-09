@@ -65,7 +65,8 @@ export default function PostProcessListPage() {
     const [dialogState, setDialogState] = useState({
         isOpen: false,
         item: null as PostProcessItem | null,
-        mode: 'none' as 'delete' | 'move_to_payment'
+        // Corrected: Added 'none' to the type definition
+        mode: 'none' as 'delete' | 'move_to_payment' | 'none'
     });
 
     useEffect(() => {
