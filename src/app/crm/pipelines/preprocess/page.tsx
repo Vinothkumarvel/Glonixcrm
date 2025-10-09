@@ -105,12 +105,6 @@ export default function PreprocessListPage() {
     <div className="min-h-screen p-6 bg-white">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-green-700">Preprocess</h1>
-        <button
-          onClick={() => navigate("/crm/pipelines/preprocess/new")}
-          className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700"
-        >
-          + Add Preprocess
-        </button>
       </div>
 
       <div className="overflow-x-auto border rounded shadow">
