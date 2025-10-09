@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { v4 as uuidv4 } from "uuid";
+import type { PreprocessItem, WorkingTimelineItem, ProjectTimelineItem } from "../../page";
 
 // --- UNIFIED TYPE DEFINITIONS ---
 export type WorkingTimelineItem = {
