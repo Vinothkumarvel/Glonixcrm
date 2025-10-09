@@ -36,7 +36,8 @@ export default function PaymentPendingListPage() {
     const [dialogState, setDialogState] = useState({
         isOpen: false,
         item: null as PaymentPendingItem | null,
-        mode: 'none' as 'delete' | 'mark_as_paid'
+        // Corrected: Added 'none' to the type definition
+        mode: 'none' as 'delete' | 'mark_as_paid' | 'none'
     });
 
     useEffect(() => {
@@ -131,7 +132,7 @@ export default function PaymentPendingListPage() {
                                     <td className="p-2 border">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <button onClick={() => openMarkAsPaidDialog(item)} className="px-3 py-1 text-xs font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">Mark as Paid</button>
-                                            {/* Corrected: Using router.push for navigation */}
+                                            {/* Corrected: Using router.push for efficient client-side navigation */}
                                             <button onClick={() => router.push(`/crm/pipelines/payment-pending/${item.id}/view`)} className="px-3 py-1 text-xs text-white bg-blue-500 rounded-md hover:bg-blue-600">View</button>
                                             <button onClick={() => openDeleteDialog(item)} className="px-3 py-1 text-xs text-white bg-red-500 rounded-md hover:bg-red-600">Delete</button>
                                         </div>
@@ -161,3 +162,4 @@ export default function PaymentPendingListPage() {
         </div>
     );
 }
+
