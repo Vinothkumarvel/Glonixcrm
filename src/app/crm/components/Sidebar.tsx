@@ -18,7 +18,7 @@ type NavItem = {
   id: string;
   label: string;
   href: string;
-  Icon: React.ComponentType<any>;
+  Icon: React.ComponentType<{ size?: number }>;
 };
 
 const NAV_ITEMS: NavItem[] = [
