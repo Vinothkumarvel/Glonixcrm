@@ -14,7 +14,7 @@ export default function NewRFQPage() {
     state: "",
     deadline: "",
     description: "",
-    billUpload: "", 
+    fileName: "", 
     source: "",
     priority: "Low",
   });
@@ -27,7 +27,7 @@ export default function NewRFQPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) {
-          setFormData(prev => ({ ...prev, billUpload: "" }));
+          setFormData(prev => ({ ...prev, fileName: "" }));
           return;
       };
 
@@ -40,7 +40,7 @@ export default function NewRFQPage() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
-          setFormData(prev => ({ ...prev, billUpload: reader.result as string }));
+          setFormData(prev => ({ ...prev, fileName: reader.result as string }));
       };
       reader.onerror = (error) => {
           console.error("Error converting file:", error);

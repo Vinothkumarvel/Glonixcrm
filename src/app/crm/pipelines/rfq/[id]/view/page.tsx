@@ -182,7 +182,7 @@ export default function ViewRFQPage() {
 
                     {/* Column 2: PDF Viewer */}
                     <section>
-                        <PdfViewer billUpload={rfq.billUpload} />
+                        <PdfViewer billUpload={rfq.fileName} />
                     </section>
                 </main>
             </div>

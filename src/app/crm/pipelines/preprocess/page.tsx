@@ -53,7 +53,7 @@ export default function PreprocessListPage() {
   
   const [dialogState, setDialogState] = useState({
     isOpen: false,
-    mode: 'none' as 'delete',
+    mode: 'none' as 'delete' | 'none',
     item: null as PreprocessItem | null,
     title: '',
     message: '',

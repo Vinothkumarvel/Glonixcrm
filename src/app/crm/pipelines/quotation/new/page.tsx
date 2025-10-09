@@ -16,8 +16,9 @@ export default function NewQuotationPage() {
     description: "",
     fileName: "",
     source: "",
+    priority: "Medium",
     customer_notes: "",
-    status: "Pending",
+    subdeals: [],
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -75,6 +76,14 @@ export default function NewQuotationPage() {
         <div>
           <label className="block font-medium text-green-800">Source</label>
           <input type="text" name="source" value={formData.source} onChange={handleChange} className="w-full p-2 border rounded" />
+        </div>
+        <div>
+          <label className="block font-medium text-green-800">Priority <span className="text-red-500">*</span></label>
+          <select name="priority" value={formData.priority} onChange={handleChange} required className="w-full p-2 border rounded">
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
         </div>
         <div className="md:col-span-2">
           <label className="block font-medium text-green-800">Description</label>
