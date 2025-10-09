@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ClosedDeal, teamMembers } from "../../page";
+import { ClosedDeal, teamMembers } from "../../types";
 
 type FormData = Omit<ClosedDeal, 'id' | 'date' | 'order_value' | 'advance_payment' | 'expense' | 'profit' | 'balance_due'> & {
     order_value: string;

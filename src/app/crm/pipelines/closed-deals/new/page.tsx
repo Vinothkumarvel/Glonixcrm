@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
-import { ClosedDeal, teamMembers } from "../page";
+import { ClosedDeal, teamMembers } from "../types";
 
 // Helper type to make form state management easier with string inputs
 type FormData = Omit<ClosedDeal, 'id' | 'date' | 'order_value' | 'advance_payment' | 'expense' | 'profit' | 'balance_due'> & {
