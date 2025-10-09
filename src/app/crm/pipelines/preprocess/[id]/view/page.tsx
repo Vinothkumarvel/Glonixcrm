@@ -5,6 +5,12 @@ import { useRouter, useParams } from "next/navigation";
 import { format } from "date-fns";
 import type { PreprocessItem, WorkingTimelineItem, ProjectTimelineItem } from "../../page";
 
+// --- Local Type Definition for Sanitized State ---
+// This ensures the component's state always has the correct shape for advance_payment.
+type SanitizedPreprocessItem = Omit<PreprocessItem, 'advance_payment'> & {
+    advance_payment: { amount: number; bank_details: string; date: string; };
+};
+
 // --- UI Components for Loading and Error States ---
 const LoadingSkeleton = () => (
     <div className="max-w-4xl p-8 mx-auto animate-pulse">
@@ -49,7 +55,7 @@ export default function ViewPreprocessPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
-    const [item, setItem] = useState<PreprocessItem | null>(null);
+    const [item, setItem] = useState<SanitizedPreprocessItem | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -59,17 +65,18 @@ export default function ViewPreprocessPage() {
             const itemToView = data.find((i) => i.id === id);
 
             if (itemToView) {
-                // Corrected: Create a new sanitized object instead of mutating the existing one.
-                let sanitizedAdvancePayment = itemToView.advance_payment;
+                let advancePaymentObject: { amount: number; bank_details: string; date: string; };
 
                 // Handle backward compatibility for old data format
                 if (typeof itemToView.advance_payment === 'number' || !itemToView.advance_payment) {
-                    sanitizedAdvancePayment = { amount: (itemToView.advance_payment as unknown as number) || 0, bank_details: '', date: '' };
+                    advancePaymentObject = { amount: (itemToView.advance_payment as unknown as number) || 0, bank_details: '', date: '' };
+                } else {
+                    advancePaymentObject = itemToView.advance_payment;
                 }
 
-                const sanitizedItem = {
+                const sanitizedItem: SanitizedPreprocessItem = {
                     ...itemToView,
-                    advance_payment: sanitizedAdvancePayment,
+                    advance_payment: advancePaymentObject,
                     working_timeline: Array.isArray(itemToView.working_timeline) ? itemToView.working_timeline : [],
                     project_timeline: Array.isArray(itemToView.project_timeline) ? itemToView.project_timeline : [],
                 };
@@ -167,3 +174,4 @@ export default function ViewPreprocessPage() {
         </div>
     );
 }
+
