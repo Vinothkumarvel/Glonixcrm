@@ -3,17 +3,19 @@
 import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Briefcase, Clock, CheckCircle, AlertTriangle, IndianRupee, FileWarning } from 'lucide-react';
-import { useRouter } from "next/navigation";
 
-// Define the data types we expect to load
+// --- TYPE DEFINITIONS ---
 type RFQ = { id: string; company_name: string; deadline: string; };
 type PreprocessItem = { id: string; company_name: string; deadline: string; project_handled_by: string };
 type PostProcessItem = { id: string; company_name: string; deadline: string; project_handled_by: string };
 type CompletedProject = { id: string; company_name: string; deadline: string; completion_date: string };
 type PaymentPendingItem = { id: string; company_name: string; balance_due: number; };
-type GstPurchaseItem = { id: string; vendor: string; total: number; paymentRequest: string; };
+type GstPurchaseItem = { id: string; vendor: string; total: number; paymentRequest: string; paymentStatus: 'Paid' | 'Unpaid' | 'Partially paid'; };
 
-// Helper component for dashboard cards (fully implemented)
+// A union type for items that can be overdue
+type OverdueableItem = (RFQ | PreprocessItem | PostProcessItem) & { type: string };
+
+// --- HELPER COMPONENTS ---
 const DashboardCard = ({ title, value, icon, color }: { title: string; value: string | number; icon: React.ReactNode, color: string }) => (
     <div className={`p-6 rounded-lg shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white`}>
         <div className="flex items-center justify-between">
@@ -26,57 +28,55 @@ const DashboardCard = ({ title, value, icon, color }: { title: string; value: st
     </div>
 );
 
-// Helper component for overdue items (fully implemented)
-const OverdueItem = ({ item, type }: { item: any, type: string }) => (
+const OverdueItem = ({ item }: { item: OverdueableItem }) => (
     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
         <div>
             <p className="font-semibold text-gray-800">{item.company_name}</p>
-            <p className="text-sm text-gray-500">{type} - Deadline: {new Date(item.deadline).toLocaleDateString()}</p>
+            <p className="text-sm text-gray-500">{item.type} - Deadline: {new Date(item.deadline).toLocaleDateString()}</p>
         </div>
         <div className="text-red-500 font-bold">OVERDUE</div>
     </div>
 );
 
 export default function DashboardPage() {
-    const router = useRouter();
-    const [userName, setUserName] = useState("User"); // Placeholder
+    const [userName] = useState("User"); // setUserName removed as it was unused
     const [stats, setStats] = useState({
         ongoing: 0,
         pendingRfqs: 0,
         onTime: 0,
         delayed: 0,
-        overdueItems: [] as any[],
+        overdueItems: [] as OverdueableItem[], // Typed correctly
         highPriorityPayments: [] as GstPurchaseItem[],
         customerPendingTotal: 0,
         supplierPendingTotal: 0,
     });
 
     useEffect(() => {
-        const rfqs = JSON.parse(localStorage.getItem("rfqData") || "[]");
-        const preprocess = JSON.parse(localStorage.getItem("preprocessData") || "[]");
-        const postprocess = JSON.parse(localStorage.getItem("postprocessData") || "[]");
-        const completed = JSON.parse(localStorage.getItem("completedProjectsData") || "[]");
-        const paymentPending = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
-        const gstPurchases = JSON.parse(localStorage.getItem("gstPurchaseData") || "[]");
+        const rfqs: RFQ[] = JSON.parse(localStorage.getItem("rfqData") || "[]");
+        const preprocess: PreprocessItem[] = JSON.parse(localStorage.getItem("preprocessData") || "[]");
+        const postprocess: PostProcessItem[] = JSON.parse(localStorage.getItem("postprocessData") || "[]");
+        const completed: CompletedProject[] = JSON.parse(localStorage.getItem("completedProjectsData") || "[]");
+        const paymentPending: PaymentPendingItem[] = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
+        const gstPurchases: GstPurchaseItem[] = JSON.parse(localStorage.getItem("gstPurchaseData") || "[]");
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const onTime = completed.filter((p: CompletedProject) => new Date(p.completion_date) <= new Date(p.deadline)).length;
+        const onTime = completed.filter(p => new Date(p.completion_date) <= new Date(p.deadline)).length;
         const delayed = completed.length - onTime;
         const ongoing = preprocess.length + postprocess.length;
 
-        const overdueItems = [
-            ...rfqs.filter((item: RFQ) => new Date(item.deadline) < today).map((item: RFQ) => ({ ...item, type: 'RFQ' })),
-            ...preprocess.filter((item: PreprocessItem) => new Date(item.deadline) < today).map((item: PreprocessItem) => ({ ...item, type: 'Preprocess' })),
-            ...postprocess.filter((item: PostProcessItem) => new Date(item.deadline) < today).map((item: PostProcessItem) => ({ ...item, type: 'Post Process' }))
+        const overdueItems: OverdueableItem[] = [
+            ...rfqs.filter(item => new Date(item.deadline) < today).map(item => ({ ...item, type: 'RFQ' })),
+            ...preprocess.filter(item => new Date(item.deadline) < today).map(item => ({ ...item, type: 'Preprocess' })),
+            ...postprocess.filter(item => new Date(item.deadline) < today).map(item => ({ ...item, type: 'Post Process' }))
         ];
 
-        const highPriorityPayments = gstPurchases.filter((item: GstPurchaseItem) => item.paymentRequest === "High");
-        const customerPendingTotal = paymentPending.reduce((sum: number, item: PaymentPendingItem) => sum + item.balance_due, 0);
+        const highPriorityPayments = gstPurchases.filter(item => item.paymentRequest === "High");
+        const customerPendingTotal = paymentPending.reduce((sum, item) => sum + item.balance_due, 0);
         const supplierPendingTotal = gstPurchases
-            .filter((item: GstPurchaseItem) => item.paymentStatus === 'Unpaid' || item.paymentStatus === 'Partially paid')
-            .reduce((sum: number, item: GstPurchaseItem) => sum + item.total, 0);
+            .filter(item => item.paymentStatus === 'Unpaid' || item.paymentStatus === 'Partially paid')
+            .reduce((sum, item) => sum + item.total, 0);
 
         setStats({ ongoing, pendingRfqs: rfqs.length, onTime, delayed, overdueItems, highPriorityPayments, customerPendingTotal, supplierPendingTotal });
 
@@ -92,7 +92,7 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen p-8 bg-gray-50">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">Hi, {userName}</h1>
-            <p className="text-gray-500 mb-8">Here's your dashboard for today.</p>
+            <p className="text-gray-500 mb-8">Here&apos;s your dashboard for today.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <DashboardCard title="Ongoing Works" value={stats.ongoing} icon={<Briefcase />} color="blue" />
@@ -141,7 +141,7 @@ export default function DashboardPage() {
                     <h2 className="text-xl font-bold text-gray-700 mb-4 flex items-center gap-2"><AlertTriangle className="text-red-500"/> Overdue Items</h2>
                     <div className="space-y-3 max-h-60 overflow-y-auto">
                         {stats.overdueItems.length > 0 ? (
-                            stats.overdueItems.map(item => <OverdueItem key={item.id} item={item} type={item.type} />)
+                            stats.overdueItems.map(item => <OverdueItem key={item.id} item={item} />)
                         ) : <p className="text-gray-500">No overdue items. Great job!</p>}
                     </div>
                 </div>
