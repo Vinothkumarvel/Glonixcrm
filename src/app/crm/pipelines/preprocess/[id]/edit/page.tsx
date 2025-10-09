@@ -57,18 +57,17 @@ export type PostProcessItem = Omit<PreprocessItem, 'approval_status'> & {
     stage_history?: StageHistory[];
 };
 
-// --- SHARED CONSTANTS ---
-export const departments = ["Fab", "EMS", "Component", "R&D", "Sales"];
-export const teamMembers = ["Alice", "Bob", "Charlie", "David", "Eve"];
-export const expenseOptions = ["Format 1", "Format 2", "Format 3", "Format 4", "Format 5"];
-
-
 export default function EditPreprocessPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
     const [formData, setFormData] = useState<PreprocessItem | null>(null);
     const [dialogState, setDialogState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+    // --- SHARED CONSTANTS (Moved inside component) ---
+    const departments = ["Fab", "EMS", "Component", "R&D", "Sales"];
+    const teamMembers = ["Alice", "Bob", "Charlie", "David", "Eve"];
+    const expenseOptions = ["Format 1", "Format 2", "Format 3", "Format 4", "Format 5"];
 
     // Effect to load data from localStorage
     useEffect(() => {
@@ -96,13 +95,20 @@ export default function EditPreprocessPage() {
 
     // Effect for auto-calculating profit and balance due
     useEffect(() => {
-        setFormData(prev => {
-            if (!prev) return null;
-            const profit = (prev.order_value || 0) - (prev.expense || 0);
-            const balance_due = (prev.order_value || 0) - (prev.advance_payment?.amount || 0);
-            return { ...prev, profit, balance_due };
-        });
-    }, [formData?.order_value, formData?.expense, formData?.advance_payment?.amount]);
+        if (formData) {
+            setFormData(prev => {
+                if (!prev) return null;
+                const profit = (prev.order_value || 0) - (prev.expense || 0);
+                const balance_due = (prev.order_value || 0) - (prev.advance_payment?.amount || 0);
+                // Only update if the values have changed to prevent infinite loops
+                if (prev.profit !== profit || prev.balance_due !== balance_due) {
+                    return { ...prev, profit, balance_due };
+                }
+                return prev;
+            });
+        }
+    }, [formData?.order_value, formData?.expense, formData?.advance_payment?.amount, formData]);
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
@@ -192,8 +198,8 @@ export default function EditPreprocessPage() {
     const proceedToApprove = () => {
         if (!formData) return;
         const { approval_status: _, ...rest } = formData; // Use `_` to denote an intentionally unused variable
-        const newPostProcessItem: PostProcessItem = { 
-            ...rest, 
+        const newPostProcessItem: PostProcessItem = {
+            ...rest,
             post_process_status: "Pending",
             stage_history: [
                 ...(formData.stage_history || []),
