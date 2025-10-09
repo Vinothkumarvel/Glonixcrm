@@ -48,16 +48,11 @@ export default function DashboardPage() {
       
       {/* Add margin-top to move the cards down */}
       <div className="grid max-w-6xl grid-cols-1 gap-10 mx-auto sm:grid-cols-2 mt-[10vh]">
-        <Card
-          title="Books"
-          subtitle="Books / Accounts / Inventory"
-          route="/books"
-          icon={<Book className="w-12 h-12" />}
-        />
+
         <Card
           title="CRM"
           subtitle="Workflow Management"
-          route="/crm"
+          route="/crm/pipelines/dashboard"
           icon={<LayoutDashboard className="w-12 h-12" />}
         />
       </div>
