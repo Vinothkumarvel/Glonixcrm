@@ -2,57 +2,55 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { format } from "date-fns";
-import { v4 as uuidv4 } from "uuid";
 import { Trash2 } from "lucide-react";
 
 // --- Type Definitions ---
 export type StageHistory = {
-  stage: string;
-  date: string;
+    stage: string;
+    date: string;
 };
 
 export type WorkingTimelineItem = {
-  s_no: number;
-  description: string;
-  deadline: string;
-  status: "Completed" | "Over Due";
-  approved: "Yes" | "Rework";
-  assigned_to?: string;
+    s_no: number;
+    description: string;
+    deadline: string;
+    status: "Completed" | "Over Due";
+    approved: "Yes" | "Rework";
+    assigned_to?: string;
 };
 
 export type ProjectTimelineItem = {
-  s_no: number;
-  description: string;
-  deadline: string;
-  status: "Completed" | "Over Due";
-  final_fileName?: string;
+    s_no: number;
+    description: string;
+    deadline: string;
+    status: "Completed" | "Over Due";
+    final_fileName?: string;
 };
 
 export type PostProcessItem = {
-  id: string;
-  date: string;
-  department: string;
-  company_name: string;
-  contact: string;
-  state: string;
-  deadline: string;
-  description: string;
-  fileName?: string;
-  source: string;
-  customer_notes: string;
-  order_value: number;
-  advance_payment: { amount: number; bank_details: string; date: string; };
-  expense: number;
-  profit: number;
-  balance_due: number;
-  subdeal_department?: string;
-  project_handled_by: string;
-  working_timeline: WorkingTimelineItem[];
-  project_timeline: ProjectTimelineItem[];
-  expense_bill_format: string;
-  post_process_status: "Pending" | "Completed";
-  stage_history?: StageHistory[];
+    id: string;
+    date: string;
+    department: string;
+    company_name: string;
+    contact: string;
+    state: string;
+    deadline: string;
+    description: string;
+    fileName?: string;
+    source: string;
+    customer_notes: string;
+    order_value: number;
+    advance_payment: { amount: number; bank_details: string; date: string; };
+    expense: number;
+    profit: number;
+    balance_due: number;
+    subdeal_department?: string;
+    project_handled_by: string;
+    working_timeline: WorkingTimelineItem[];
+    project_timeline: ProjectTimelineItem[];
+    expense_bill_format: string;
+    post_process_status: "Pending" | "Completed";
+    stage_history?: StageHistory[];
 };
 
 export type PaymentPendingItem = Omit<PostProcessItem, 'post_process_status'> & {
@@ -71,10 +69,10 @@ export default function EditPostProcessPage() {
     const params = useParams();
     const id = params.id as string;
     const [formData, setFormData] = useState<PostProcessItem | null>(null);
-    const [dialogState, setDialogState] = useState({ 
-        isOpen: false, 
-        title: '', 
-        message: '', 
+    const [dialogState, setDialogState] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
         onConfirm: () => {},
         isValidation: false,
     });
@@ -100,58 +98,75 @@ export default function EditPostProcessPage() {
     }, [id]);
 
     useEffect(() => {
+        // This effect correctly recalculates financials when dependencies change.
         if (!formData) return;
         const profit = (formData.order_value || 0) - (formData.expense || 0);
         const balance_due = (formData.order_value || 0) - (formData.advance_payment?.amount || 0);
-        setFormData(prev => prev ? ({ ...prev, profit, balance_due }) : null);
-    }, [formData?.order_value, formData?.expense, formData?.advance_payment?.amount]);
+        
+        // Check if values have changed to prevent unnecessary re-renders
+        if (profit !== formData.profit || balance_due !== formData.balance_due) {
+            setFormData(prev => prev ? ({ ...prev, profit, balance_due }) : null);
+        }
+    }, [formData]); // Dependency array includes formData to catch all relevant changes.
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        if (!formData) return;
         const { name, value, type } = e.target;
         const isNumber = type === 'number';
-        setFormData({ ...formData, [name]: isNumber ? parseFloat(value) || 0 : value });
+        setFormData(prev => prev ? { ...prev, [name]: isNumber ? parseFloat(value) || 0 : value } : null);
     };
 
     const handleAdvancePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!formData) return;
         const { name, value, type } = e.target;
         const isNumber = type === 'number';
-        setFormData({ ...formData, advance_payment: { ...formData.advance_payment, [name]: isNumber ? parseFloat(value) || 0 : value } });
+        setFormData(prev => prev ? { ...prev, advance_payment: { ...prev.advance_payment, [name]: isNumber ? parseFloat(value) || 0 : value } } : null);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!formData) return;
         const file = e.target.files?.[0];
-        setFormData({ ...formData, fileName: file?.name || "" });
+        setFormData(prev => prev ? { ...prev, fileName: file?.name || "" } : null);
     };
 
-    const handleTimelineChange = (index: number, field: keyof WorkingTimelineItem | keyof ProjectTimelineItem, value: any, timelineType: 'working_timeline' | 'project_timeline') => {
-        if (!formData) return;
-        const updatedTimeline = [...formData[timelineType]];
-        (updatedTimeline[index] as any)[field] = value;
-        setFormData({ ...formData, [timelineType]: updatedTimeline as any });
+    const handleTimelineChange = (
+        index: number,
+        field: keyof WorkingTimelineItem | keyof ProjectTimelineItem,
+        value: string | number, // Corrected: Type for 'value' is specified
+        timelineType: 'working_timeline' | 'project_timeline'
+    ) => {
+        setFormData(prev => {
+            if (!prev) return null;
+            // Corrected: Uses .map for immutable, type-safe updates
+            const updatedTimeline = prev[timelineType].map((item, i) =>
+                i === index ? { ...item, [field]: value } : item
+            );
+            return { ...prev, [timelineType]: updatedTimeline };
+        });
     };
 
     const addTimelineRow = (timelineType: 'working_timeline' | 'project_timeline') => {
-        if (!formData) return;
-        if (timelineType === 'working_timeline') {
-            const newRow: WorkingTimelineItem = { s_no: formData.working_timeline.length + 1, description: '', deadline: '', status: 'Over Due', approved: 'Rework', assigned_to: '' };
-            setFormData({ ...formData, working_timeline: [...formData.working_timeline, newRow] });
-        } else {
-            const newRow: ProjectTimelineItem = { s_no: formData.project_timeline.length + 1, description: '', deadline: '', status: 'Over Due', final_fileName: '' };
-            setFormData({ ...formData, project_timeline: [...formData.project_timeline, newRow] });
-        }
+        setFormData(prev => {
+            if (!prev) return null;
+            if (timelineType === 'working_timeline') {
+                const newRow: WorkingTimelineItem = { s_no: prev.working_timeline.length + 1, description: '', deadline: '', status: 'Over Due', approved: 'Rework', assigned_to: '' };
+                return { ...prev, working_timeline: [...prev.working_timeline, newRow] };
+            } else {
+                const newRow: ProjectTimelineItem = { s_no: prev.project_timeline.length + 1, description: '', deadline: '', status: 'Over Due', final_fileName: '' };
+                return { ...prev, project_timeline: [...prev.project_timeline, newRow] };
+            }
+        });
     };
 
-    const removeTimelineRow = (index: number, timelineType: 'working_timeline' | 'project_timeline') => {
-        if (!formData) return;
-        const newTimeline = formData[timelineType].filter((_, i) => i !== index).map((row, i) => ({ ...row, s_no: i + 1 }));
-        setFormData({ ...formData, [timelineType]: newTimeline as any });
+    const removeTimelineRow = (indexToRemove: number, timelineType: 'working_timeline' | 'project_timeline') => {
+        setFormData(prev => {
+            if (!prev) return null;
+            const newTimeline = prev[timelineType]
+                .filter((_, i) => i !== indexToRemove)
+                .map((row, i) => ({ ...row, s_no: i + 1 }));
+            // Corrected: No 'as any' needed due to proper typing
+            return { ...prev, [timelineType]: newTimeline };
+        });
     };
 
     const handleTimelineFileChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        if (!formData) return;
         const file = e.target.files?.[0];
         handleTimelineChange(index, 'final_fileName', file?.name || '', 'project_timeline');
     };
@@ -178,17 +193,19 @@ export default function EditPostProcessPage() {
     const closeDialog = () => setDialogState({ isOpen: false, title: '', message: '', onConfirm: () => {}, isValidation: false });
 
     const proceedWithUpdate = () => {
-        const data = JSON.parse(localStorage.getItem("postprocessData") || "[]");
-        const updatedData = data.map((item: PostProcessItem) => (item.id === id ? formData : item));
+        if (!formData) return;
+        const data: PostProcessItem[] = JSON.parse(localStorage.getItem("postprocessData") || "[]");
+        const updatedData = data.map(item => (item.id === id ? formData : item));
         localStorage.setItem("postprocessData", JSON.stringify(updatedData));
         router.push("/crm/pipelines/postprocess");
     };
     
     const proceedToPaymentPending = () => {
         if (!formData) return;
-        const { post_process_status, ...rest } = formData;
-        const newPaymentPendingItem: PaymentPendingItem = { 
-            ...rest, 
+        // Corrected: Handle unused variable by renaming to '_'
+        const { post_process_status: _, ...rest } = formData;
+        const newPaymentPendingItem: PaymentPendingItem = {
+            ...rest,
             payment_status: 'Pending',
             stage_history: [
                 ...(formData.stage_history || []),
@@ -196,11 +213,11 @@ export default function EditPostProcessPage() {
             ]
         };
 
-        const paymentData = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
+        const paymentData: PaymentPendingItem[] = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
         localStorage.setItem("paymentPendingData", JSON.stringify([...paymentData, newPaymentPendingItem]));
 
-        const postprocessData = JSON.parse(localStorage.getItem("postprocessData") || "[]");
-        const updatedPostprocess = postprocessData.filter((item: PostProcessItem) => item.id !== id);
+        const postprocessData: PostProcessItem[] = JSON.parse(localStorage.getItem("postprocessData") || "[]");
+        const updatedPostprocess = postprocessData.filter(item => item.id !== id);
         localStorage.setItem("postprocessData", JSON.stringify(updatedPostprocess));
         router.push("/crm/pipelines/postprocess");
     };
@@ -218,9 +235,9 @@ export default function EditPostProcessPage() {
                     
                     <fieldset className="p-6 bg-white border rounded-lg shadow-sm"><legend className="text-lg font-semibold text-green-800">Team, Handovers & Files</legend><div className="grid grid-cols-1 gap-6 mt-4 md:grid-cols-2"><div><label className="block font-medium">Subdeal Department</label><input list="departments" name="subdeal_department" value={formData.subdeal_department || ''} onChange={handleChange} className="w-full p-2 mt-1 border rounded" /><datalist id="departments">{departments.map(d => <option key={d} value={d} />)}</datalist></div><div><label className="block font-medium">Project Handled By</label><input list="teamMembers" name="project_handled_by" value={formData.project_handled_by} onChange={handleChange} required className="w-full p-2 mt-1 border rounded" /><datalist id="teamMembers">{teamMembers.map(m => <option key={m} value={m} />)}</datalist></div><div className="md:col-span-2"><label className="block font-medium">Main Project File</label><input type="file" onChange={handleFileChange} className="w-full p-2 mt-1 text-sm border rounded bg-white" /><p className="text-xs text-gray-500 mt-1">Current file: {formData.fileName || 'None'}</p></div></div></fieldset>
 
-                    <fieldset className="p-6 bg-white border rounded-lg shadow-sm"><legend className="text-lg font-semibold text-green-800">Working Timeline</legend><div className="overflow-x-auto mt-4"><table className="w-full min-w-[800px]"><thead><tr className="bg-gray-50 text-left text-sm font-medium text-gray-600"><th>S.No</th><th className="px-2">Description</th><th className="px-2">Assigned To</th><th className="px-2">Deadline</th><th className="px-2">Status</th><th className="px-2">Approved</th><th>Action</th></tr></thead><tbody>{formData.working_timeline.map((row, index) => (<tr key={index}><td><input type="number" value={row.s_no} onChange={(e) => handleTimelineChange(index, "s_no", parseInt(e.target.value) || 0, "working_timeline")} className="w-16 p-2 border rounded"/></td><td className="px-2"><input type="text" value={row.description} onChange={(e) => handleTimelineChange(index, "description", e.target.value, "working_timeline")} className="w-full p-2 border rounded"/></td><td className="px-2"><input list="teamMembers" value={row.assigned_to || ''} onChange={(e) => handleTimelineChange(index, "assigned_to", e.target.value, "working_timeline")} className="w-full p-2 border rounded" placeholder="Select Member"/></td><td className="px-2"><input type="date" value={row.deadline} onChange={(e) => handleTimelineChange(index, "deadline", e.target.value, "working_timeline")} className="w-full p-2 border rounded"/></td><td className="px-2"><select value={row.status} onChange={(e) => handleTimelineChange(index, "status", e.target.value, "working_timeline")} className="w-full p-2 border rounded bg-white"><option>Over Due</option><option>Completed</option></select></td><td className="px-2"><select value={row.approved} onChange={(e) => handleTimelineChange(index, "approved", e.target.value, "working_timeline")} className="w-full p-2 border rounded bg-white"><option>Rework</option><option>Yes</option></select></td><td><button type="button" onClick={() => removeTimelineRow(index, "working_timeline")} className="p-2 text-red-500 hover:text-red-700"><Trash2 size={16} /></button></td></tr>))}</tbody></table><datalist id="teamMembers">{teamMembers.map(m => <option key={m} value={m} />)}</datalist></div><button type="button" onClick={() => addTimelineRow('working_timeline')} className="mt-4 px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">+ Add Working Row</button></fieldset>
+                    <fieldset className="p-6 bg-white border rounded-lg shadow-sm"><legend className="text-lg font-semibold text-green-800">Working Timeline</legend><div className="overflow-x-auto mt-4"><table className="w-full min-w-[800px]"><thead><tr className="bg-gray-50 text-left text-sm font-medium text-gray-600"><th>S.No</th><th className="px-2">Description</th><th className="px-2">Assigned To</th><th className="px-2">Deadline</th><th className="px-2">Status</th><th className="px-2">Approved</th><th>Action</th></tr></thead><tbody>{formData.working_timeline.map((row, index) => (<tr key={index}><td><input type="number" value={row.s_no} onChange={(e) => handleTimelineChange(index, "s_no", parseInt(e.target.value) || 0, "working_timeline")} className="w-16 p-2 border rounded"/></td><td className="px-2"><input type="text" value={row.description} onChange={(e) => handleTimelineChange(index, "description", e.target.value, "working_timeline")} className="w-full p-2 border rounded"/></td><td className="px-2"><input list="teamMembers" value={row.assigned_to || ''} onChange={(e) => handleTimelineChange(index, "assigned_to", e.target.value, "working_timeline")} className="w-full p-2 border rounded" placeholder="Select Member"/></td><td className="px-2"><input type="date" value={row.deadline} onChange={(e) => handleTimelineChange(index, "deadline", e.target.value, "working_timeline")} className="w-full p-2 border rounded"/></td><td className="px-2"><select value={row.status} onChange={(e) => handleTimelineChange(index, "status", e.target.value as WorkingTimelineItem['status'], "working_timeline")} className="w-full p-2 border rounded bg-white"><option>Over Due</option><option>Completed</option></select></td><td className="px-2"><select value={row.approved} onChange={(e) => handleTimelineChange(index, "approved", e.target.value as WorkingTimelineItem['approved'], "working_timeline")} className="w-full p-2 border rounded bg-white"><option>Rework</option><option>Yes</option></select></td><td><button type="button" onClick={() => removeTimelineRow(index, "working_timeline")} className="p-2 text-red-500 hover:text-red-700"><Trash2 size={16} /></button></td></tr>))}</tbody></table><datalist id="teamMembers">{teamMembers.map(m => <option key={m} value={m} />)}</datalist></div><button type="button" onClick={() => addTimelineRow('working_timeline')} className="mt-4 px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">+ Add Working Row</button></fieldset>
                     
-                    <fieldset className="p-6 bg-white border rounded-lg shadow-sm"><legend className="text-lg font-semibold text-green-800">Project Timeline</legend><div className="overflow-x-auto mt-4"><table className="w-full"><thead><tr className="bg-gray-50 text-left text-sm font-medium text-gray-600"><th>S.No</th><th className="px-2">Description</th><th className="px-2">Deadline</th><th className="px-2">Status</th><th className="px-2">Final File</th><th>Action</th></tr></thead><tbody>{formData.project_timeline.map((row, index) => (<tr key={index}><td><input type="number" value={row.s_no} onChange={(e) => handleTimelineChange(index, 's_no', parseInt(e.target.value) || 0, 'project_timeline')} className="w-16 p-2 border rounded" /></td><td className="px-2"><input type="text" value={row.description} onChange={(e) => handleTimelineChange(index, 'description', e.target.value, 'project_timeline')} className="w-full p-2 border rounded" /></td><td className="px-2"><input type="date" value={row.deadline} onChange={(e) => handleTimelineChange(index, 'deadline', e.target.value, 'project_timeline')} className="w-full p-2 border rounded" /></td><td className="px-2"><select value={row.status} onChange={(e) => handleTimelineChange(index, 'status', e.target.value, 'project_timeline')} className="w-full p-2 border rounded bg-white"><option>Over Due</option><option>Completed</option></select></td><td className="px-2"><input type="file" onChange={(e) => handleTimelineFileChange(e, index)} className="w-full p-1.5 border rounded text-xs" /></td><td><button type="button" onClick={() => removeTimelineRow(index, 'project_timeline')} className="p-2 text-red-500 hover:text-red-700"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div><button type="button" onClick={() => addTimelineRow('project_timeline')} className="mt-4 px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">+ Add Project Row</button></fieldset>
+                    <fieldset className="p-6 bg-white border rounded-lg shadow-sm"><legend className="text-lg font-semibold text-green-800">Project Timeline</legend><div className="overflow-x-auto mt-4"><table className="w-full"><thead><tr className="bg-gray-50 text-left text-sm font-medium text-gray-600"><th>S.No</th><th className="px-2">Description</th><th className="px-2">Deadline</th><th className="px-2">Status</th><th className="px-2">Final File</th><th>Action</th></tr></thead><tbody>{formData.project_timeline.map((row, index) => (<tr key={index}><td><input type="number" value={row.s_no} onChange={(e) => handleTimelineChange(index, 's_no', parseInt(e.target.value) || 0, 'project_timeline')} className="w-16 p-2 border rounded" /></td><td className="px-2"><input type="text" value={row.description} onChange={(e) => handleTimelineChange(index, 'description', e.target.value, 'project_timeline')} className="w-full p-2 border rounded" /></td><td className="px-2"><input type="date" value={row.deadline} onChange={(e) => handleTimelineChange(index, 'deadline', e.target.value, 'project_timeline')} className="w-full p-2 border rounded" /></td><td className="px-2"><select value={row.status} onChange={(e) => handleTimelineChange(index, 'status', e.target.value as ProjectTimelineItem['status'], 'project_timeline')} className="w-full p-2 border rounded bg-white"><option>Over Due</option><option>Completed</option></select></td><td className="px-2"><input type="file" onChange={(e) => handleTimelineFileChange(e, index)} className="w-full p-1.5 border rounded text-xs" /></td><td><button type="button" onClick={() => removeTimelineRow(index, 'project_timeline')} className="p-2 text-red-500 hover:text-red-700"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div><button type="button" onClick={() => addTimelineRow('project_timeline')} className="mt-4 px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700">+ Add Project Row</button></fieldset>
 
                     <fieldset className="p-6 bg-white border rounded-lg shadow-sm">
                         <legend className="text-lg font-semibold text-green-800">Project Status</legend>
@@ -238,7 +255,8 @@ export default function EditPostProcessPage() {
                                     <option value="Completed">Mark as Completed</option>
                                 </select>
                                 <p className="text-sm text-gray-500 mt-2">
-                                    To move this project to 'Payment Pending', set the status to 'Completed' and ensure all Working Timeline tasks are approved.
+                                    {/* Corrected: Replaced single quotes with &apos; */}
+                                    To move this project to &apos;Payment Pending&apos;, set the status to &apos;Completed&apos; and ensure all Working Timeline tasks are approved.
                                 </p>
                             </div>
                         </div>
