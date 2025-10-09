@@ -57,13 +57,19 @@ export default function ViewPreprocessPage() {
             const storedData = localStorage.getItem("preprocessData") || "[]";
             const data: PreprocessItem[] = JSON.parse(storedData);
             const itemToView = data.find((i) => i.id === id);
+
             if (itemToView) {
-                 // Backward compatibility for advance_payment and timelines
+                // Corrected: Create a new sanitized object instead of mutating the existing one.
+                let sanitizedAdvancePayment = itemToView.advance_payment;
+
+                // Handle backward compatibility for old data format
                 if (typeof itemToView.advance_payment === 'number' || !itemToView.advance_payment) {
-                    itemToView.advance_payment = { amount: (itemToView.advance_payment as unknown as number) || 0, bank_details: '', date: '' };
+                    sanitizedAdvancePayment = { amount: (itemToView.advance_payment as unknown as number) || 0, bank_details: '', date: '' };
                 }
+
                 const sanitizedItem = {
                     ...itemToView,
+                    advance_payment: sanitizedAdvancePayment,
                     working_timeline: Array.isArray(itemToView.working_timeline) ? itemToView.working_timeline : [],
                     project_timeline: Array.isArray(itemToView.project_timeline) ? itemToView.project_timeline : [],
                 };
@@ -94,9 +100,8 @@ export default function ViewPreprocessPage() {
                 <main className="space-y-8">
                     <section className="p-6 bg-white border rounded-lg shadow-sm">
                         <div className="flex justify-between items-start mb-4">
-                             <h2 className="text-lg font-semibold text-green-800">Project Information</h2>
-                             {/* ADDED: Approval Status Badge */}
-                             <StatusBadge status={item.approval_status} />
+                            <h2 className="text-lg font-semibold text-green-800">Project Information</h2>
+                            <StatusBadge status={item.approval_status} />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
                             <DetailItem label="Company Name" value={item.company_name} />
@@ -107,7 +112,6 @@ export default function ViewPreprocessPage() {
                             <DetailItem label="Subdeal Department" value={item.subdeal_department} />
                             <DetailItem label="Date Received" value={format(new Date(item.date), "dd MMMM, yyyy")} />
                             <DetailItem label="Final Deadline" value={format(new Date(item.deadline), "dd MMMM, yyyy")} />
-                            {/* ADDED: Missing fields */}
                             <DetailItem label="Source" value={item.source} />
                             <DetailItem label="Main Project File" value={item.fileName} />
                             <div className="sm:col-span-2"><DetailItem label="Original Description" value={item.description} /></div>
@@ -115,7 +119,6 @@ export default function ViewPreprocessPage() {
                         </div>
                     </section>
 
-                    {/* CORRECTED: Financial Summary Section */}
                     <section className="p-6 bg-white border rounded-lg shadow-sm">
                         <h2 className="text-lg font-semibold text-green-800 border-b pb-2 mb-4">Financial Summary</h2>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -123,12 +126,10 @@ export default function ViewPreprocessPage() {
                             <DetailItem label="Total Expense" value={formatCurrency(item.expense)} />
                             <DetailItem label="Expense Bill Format" value={item.expense_bill_format} />
                             
-                            {/* Correctly showing Advance Payment Details */}
                             <DetailItem label="Advance Amount" value={formatCurrency(item.advance_payment?.amount)} />
                             <DetailItem label="Bank Details" value={item.advance_payment?.bank_details} />
                             <DetailItem label="Payment Date" value={item.advance_payment?.date ? format(new Date(item.advance_payment.date), "dd MMM, yyyy") : '-'} />
                             
-                            {/* Calculated Fields */}
                             <div className="col-span-full grid grid-cols-2 gap-6 mt-4 pt-4 border-t">
                                 <div className="p-4 bg-blue-50 rounded-lg">
                                     <DetailItem label="Calculated Profit" value={formatCurrency(item.profit)} />
