@@ -7,32 +7,29 @@ import { v4 as uuidv4 } from "uuid";
 
 // --- 1. Corrected Type Definitions ---
 
-// Example team members list. This should ideally come from a shared source.
-export const teamMembers = ["Sophia Chen", "Liam Goldberg", "Aarav Patel", "Isabella Rossi", "Noah Kim"];
-
 // Represents a single negotiation task, created from a quotation or a subdeal.
 export type Negotiation = {
-  id: string;
-  date: string;
-  department: string;   // The specific department for this negotiation task
-  company_name: string;
-  contact: string;
-  state: string;
-  deadline: string;
-  description: string;
-  fileName?: string;
-  source: string;
-  priority: "High" | "Medium" | "Low";
-  customer_notes: string; // Notes from the parent quotation
-  subdeal_notes?: string;  // Notes from the specific subdeal, if applicable
+    id: string;
+    date: string;
+    department: string; // The specific department for this negotiation task
+    company_name: string;
+    contact: string;
+    state: string;
+    deadline: string;
+    description: string;
+    fileName?: string;
+    source: string;
+    priority: "High" | "Medium" | "Low";
+    customer_notes: string; // Notes from the parent quotation
+    subdeal_notes?: string; // Notes from the specific subdeal, if applicable
 
-  // Fields for the negotiation workflow
-  team_member?: string; // The team member assigned to this task
-  quotation_status: "Followup" | "Closed" | "Convert";
-  followup_datetime?: string;
-  closed_reason?: string;
-  convert_info?: string;
-  po_document?: string;
+    // Fields for the negotiation workflow
+    team_member?: string; // The team member assigned to this task
+    quotation_status: "Followup" | "Closed" | "Convert";
+    followup_datetime?: string;
+    closed_reason?: string;
+    convert_info?: string;
+    po_document?: string;
 };
 
 // Represents an item moved to the "Preprocess" pipeline after conversion.
@@ -42,12 +39,12 @@ type Preprocess = Omit<Negotiation, 'quotation_status' | 'closed_reason' | 'foll
 
 // Represents an item moved to the "Closed" pipeline.
 type ClosedItem = {
-  id: string;
-  company_name: string;
-  department: string;
-  rejection_stage: "RFQ" | "Feasibility" | "Quotation" | "Negotiation";
-  rejection_reason: string;
-  closed_date: string;
+    id: string;
+    company_name: string;
+    department: string;
+    rejection_stage: "RFQ" | "Feasibility" | "Quotation" | "Negotiation";
+    rejection_reason: string;
+    closed_date: string;
 };
 
 
@@ -57,6 +54,9 @@ export default function EditNegotiationPage() {
     const id = params.id as string;
     const [formData, setFormData] = useState<Negotiation | null>(null);
     const [dialogState, setDialogState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+    // Moved inside the component to fix Next.js page export error
+    const teamMembers = ["Sophia Chen", "Liam Goldberg", "Aarav Patel", "Isabella Rossi", "Noah Kim"];
 
     useEffect(() => {
         if (id) {
