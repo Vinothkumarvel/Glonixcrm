@@ -58,12 +58,6 @@ export type PaymentPendingItem = Omit<PostProcessItem, 'post_process_status'> & 
     stage_history?: StageHistory[];
 };
 
-// SHARED CONSTANTS
-export const departments = ["Fab", "EMS", "Component", "R&D", "Sales"];
-export const teamMembers = ["Alice", "Bob", "Charlie", "David", "Eve"];
-export const expenseOptions = ["Format 1", "Format 2", "Format 3", "Format 4", "Format 5"];
-
-
 export default function EditPostProcessPage() {
     const router = useRouter();
     const params = useParams();
@@ -76,6 +70,11 @@ export default function EditPostProcessPage() {
         onConfirm: () => {},
         isValidation: false,
     });
+    
+    // Moved inside the component to fix Next.js page export error
+    const departments = ["Fab", "EMS", "Component", "R&D", "Sales"];
+    const teamMembers = ["Alice", "Bob", "Charlie", "David", "Eve"];
+    const expenseOptions = ["Format 1", "Format 2", "Format 3", "Format 4", "Format 5"];
 
     useEffect(() => {
         if (id) {
@@ -98,16 +97,15 @@ export default function EditPostProcessPage() {
     }, [id]);
 
     useEffect(() => {
-        // This effect correctly recalculates financials when dependencies change.
         if (!formData) return;
         const profit = (formData.order_value || 0) - (formData.expense || 0);
         const balance_due = (formData.order_value || 0) - (formData.advance_payment?.amount || 0);
         
-        // Check if values have changed to prevent unnecessary re-renders
         if (profit !== formData.profit || balance_due !== formData.balance_due) {
             setFormData(prev => prev ? ({ ...prev, profit, balance_due }) : null);
         }
-    }, [formData]); // Dependency array includes formData to catch all relevant changes.
+    }, [formData?.order_value, formData?.expense, formData?.advance_payment?.amount, formData?.profit, formData?.balance_due]);
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
@@ -129,12 +127,11 @@ export default function EditPostProcessPage() {
     const handleTimelineChange = (
         index: number,
         field: keyof WorkingTimelineItem | keyof ProjectTimelineItem,
-        value: string | number, // Corrected: Type for 'value' is specified
+        value: string | number,
         timelineType: 'working_timeline' | 'project_timeline'
     ) => {
         setFormData(prev => {
             if (!prev) return null;
-            // Corrected: Uses .map for immutable, type-safe updates
             const updatedTimeline = prev[timelineType].map((item, i) =>
                 i === index ? { ...item, [field]: value } : item
             );
@@ -161,7 +158,6 @@ export default function EditPostProcessPage() {
             const newTimeline = prev[timelineType]
                 .filter((_, i) => i !== indexToRemove)
                 .map((row, i) => ({ ...row, s_no: i + 1 }));
-            // Corrected: No 'as any' needed due to proper typing
             return { ...prev, [timelineType]: newTimeline };
         });
     };
@@ -202,7 +198,6 @@ export default function EditPostProcessPage() {
     
     const proceedToPaymentPending = () => {
         if (!formData) return;
-        // Corrected: Handle unused variable by renaming to '_'
         const { post_process_status: _, ...rest } = formData;
         const newPaymentPendingItem: PaymentPendingItem = {
             ...rest,
@@ -213,11 +208,11 @@ export default function EditPostProcessPage() {
             ]
         };
 
-        const paymentData: PaymentPendingItem[] = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
+        const paymentData = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
         localStorage.setItem("paymentPendingData", JSON.stringify([...paymentData, newPaymentPendingItem]));
 
-        const postprocessData: PostProcessItem[] = JSON.parse(localStorage.getItem("postprocessData") || "[]");
-        const updatedPostprocess = postprocessData.filter(item => item.id !== id);
+        const postprocessData = JSON.parse(localStorage.getItem("postprocessData") || "[]");
+        const updatedPostprocess = postprocessData.filter((item: PostProcessItem) => item.id !== id);
         localStorage.setItem("postprocessData", JSON.stringify(updatedPostprocess));
         router.push("/crm/pipelines/postprocess");
     };
@@ -244,18 +239,17 @@ export default function EditPostProcessPage() {
                         <div className="mt-4">
                             <div>
                                 <label htmlFor="post_process_status" className="block font-medium">Update Project Status</label>
-                                <select 
+                                <select
                                     id="post_process_status"
-                                    name="post_process_status" 
-                                    value={formData.post_process_status} 
-                                    onChange={handleChange} 
+                                    name="post_process_status"
+                                    value={formData.post_process_status}
+                                    onChange={handleChange}
                                     className="w-full p-2 mt-1 bg-white border rounded"
                                 >
                                     <option value="Pending">In Progress</option>
                                     <option value="Completed">Mark as Completed</option>
                                 </select>
                                 <p className="text-sm text-gray-500 mt-2">
-                                    {/* Corrected: Replaced single quotes with &apos; */}
                                     To move this project to &apos;Payment Pending&apos;, set the status to &apos;Completed&apos; and ensure all Working Timeline tasks are approved.
                                 </p>
                             </div>
@@ -286,3 +280,4 @@ export default function EditPostProcessPage() {
         </div>
     );
 }
+
