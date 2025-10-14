@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Layers,
   Users,
@@ -13,6 +13,8 @@ import {
   Plus,
   Flag,
 } from "lucide-react";
+import { HierarchicalPipeline, pipelineHelpers, STANDARD_PIPELINE_STAGES, ActivityLog } from "@/types/pipeline";
+import PipelineTreeView from "./PipelineTreeView";
 
 type NavItem = {
   id: string;
@@ -20,6 +22,21 @@ type NavItem = {
   href: string;
   Icon: React.ComponentType<{ size?: number }>;
 };
+
+function getStorageKeyForTab(tab: string) {
+  const map: Record<string, string> = {
+    rfq: "rfqData",
+    feasibility: "feasibilityData",
+    quotation: "quotationData",
+    negotiation: "negotiationData",
+    "closed-deals": "closedDealsData",
+    preprocess: "preprocessData",
+    postprocess: "postprocessData",
+    "payment-pending": "paymentPendingData",
+    "completed-projects": "completedProjectsData",
+  };
+  return map[tab] || "";
+}
 
 const NAV_ITEMS: NavItem[] = [
   {id: "dashboard", label: "Dashboard", href: "/crm", Icon: Flag },
@@ -39,6 +56,7 @@ const NAV_ITEMS: NavItem[] = [
     Icon: Calendar,
   },
   { id: "reports", label: "Reports", href: "", Icon: Flag },
+  { id: "admin", label: "Admin", href: "/crm/admin", Icon: Settings },
   { id: "settings", label: "Settings", href: "", Icon: Settings },
 ];
 
@@ -50,7 +68,9 @@ export default function Sidebar({
   onMobileClose?: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [hierarchicalPipelines, setHierarchicalPipelines] = useState<HierarchicalPipeline[]>([]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -59,6 +79,77 @@ export default function Sidebar({
     if (isMobileOpen) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [isMobileOpen, onMobileClose]);
+
+  useEffect(() => {
+    // Load hierarchical pipelines from localStorage
+    const stored = localStorage.getItem("hierarchicalPipelines");
+    if (stored) {
+      try {
+        const flatPipelines = JSON.parse(stored);
+        const tree = pipelineHelpers.buildTree(flatPipelines);
+        setHierarchicalPipelines(tree);
+      } catch {
+        setHierarchicalPipelines([]);
+      }
+    }
+  }, []);
+
+  const handleUpdatePipelines = (updated: HierarchicalPipeline[]) => {
+    setHierarchicalPipelines(updated);
+    
+    // Filter out pipelines without content before saving
+    const pipelinesWithContent = updated.filter(pipeline => {
+      // Check if pipeline has content
+      const hasContent = pipelineHelpers.hasContent(pipeline);
+      
+      // Also check children recursively
+      const checkChildren = (p: HierarchicalPipeline): boolean => {
+        if (pipelineHelpers.hasContent(p)) return true;
+        return p.children.some(child => checkChildren(child));
+      };
+      
+      return hasContent || checkChildren(pipeline);
+    });
+    
+    const flatPipelines = pipelineHelpers.flattenTree(pipelinesWithContent);
+    localStorage.setItem("hierarchicalPipelines", JSON.stringify(flatPipelines));
+  };
+
+  const handleAddPipeline = () => {
+    // Create new top-level pipeline with all 8 standard stages
+    const newPipeline: HierarchicalPipeline = {
+      id: crypto.randomUUID(),
+      name: `Pipeline ${hierarchicalPipelines.length + 1}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      parentId: null,
+      userId: "current-user", // TODO: Get from auth context
+      userName: "Current User", // TODO: Get from auth context
+      status: "Pending", // New pipelines start as pending
+      activityLogs: [
+        {
+          id: crypto.randomUUID(),
+          action: "created",
+          timestamp: new Date().toISOString(),
+          userId: "current-user",
+          userName: "Current User",
+          details: "Pipeline created"
+        }
+      ],
+      stages: pipelineHelpers.createStandardStages(), // All 8 standard stages
+      children: [],
+    };
+
+    // Add to TOP of list (prepend)
+    const updated = [newPipeline, ...hierarchicalPipelines];
+    
+    // Note: Pipeline will only be persisted if it has content (items)
+    // This is handled in the save logic
+    handleUpdatePipelines(updated);
+
+    // Navigate to the new pipeline
+    router.push(`/crm/pipelines/${newPipeline.id}`);
+  };
 
   return (
     <>
@@ -122,6 +213,32 @@ export default function Sidebar({
               );
             })}
           </ul>
+
+          {/* Hierarchical Pipelines Tree */}
+          {!collapsed && (
+            <div className="mt-3 px-2">
+              <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
+                Custom Pipelines
+              </div>
+              <PipelineTreeView 
+                pipelines={hierarchicalPipelines} 
+                onUpdate={handleUpdatePipelines}
+              />
+            </div>
+          )}
+
+          {/* Add Pipeline Button - appears below custom pipelines */}
+          {!collapsed && (
+            <div className="mt-2 px-2">
+              <button
+                onClick={handleAddPipeline}
+                className="w-full flex items-center gap-2 py-2 px-3 rounded-md text-xs bg-emerald-600 hover:bg-emerald-700 transition font-medium"
+              >
+                <Plus size={14} />
+                <span>Add Pipeline</span>
+              </button>
+            </div>
+          )}
         </nav>
 
         {/* User */}
@@ -188,6 +305,31 @@ export default function Sidebar({
               );
             })}
           </ul>
+
+          {/* Hierarchical Pipelines Tree - Mobile */}
+          <div className="mt-3 px-2">
+            <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
+              Custom Pipelines
+            </div>
+            <PipelineTreeView 
+              pipelines={hierarchicalPipelines} 
+              onUpdate={handleUpdatePipelines}
+            />
+          </div>
+
+          {/* Add Pipeline Button - Mobile */}
+          <div className="mt-2 px-2">
+            <button
+              onClick={() => {
+                handleAddPipeline();
+                onMobileClose && onMobileClose();
+              }}
+              className="w-full flex items-center gap-2 py-2 px-3 rounded-md text-xs bg-emerald-600 hover:bg-emerald-700 transition font-medium"
+            >
+              <Plus size={14} />
+              <span>Add Pipeline</span>
+            </button>
+          </div>
         </nav>
 
         <div className="px-2 py-2 border-t border-white/10">

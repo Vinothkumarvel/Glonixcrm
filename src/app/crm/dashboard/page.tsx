@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Briefcase, Clock, CheckCircle, AlertTriangle, IndianRupee, FileWarning } from 'lucide-react';
+import { Briefcase, Clock, CheckCircle, AlertTriangle, IndianRupee, FileWarning, XCircle } from 'lucide-react';
+import { HierarchicalPipeline, pipelineHelpers } from "@/types/pipeline";
 
 // --- TYPE DEFINITIONS ---
 type RFQ = { id: string; company_name: string; deadline: string; };
@@ -39,7 +41,9 @@ const OverdueItem = ({ item }: { item: OverdueableItem }) => (
 );
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [userName] = useState("User"); // setUserName removed as it was unused
+    const [rejectedPipelines, setRejectedPipelines] = useState<HierarchicalPipeline[]>([]);
     const [stats, setStats] = useState({
         ongoing: 0,
         pendingRfqs: 0,
@@ -52,6 +56,33 @@ export default function DashboardPage() {
     });
 
     useEffect(() => {
+        // Load rejected pipelines
+        const stored = localStorage.getItem("hierarchicalPipelines");
+        if (stored) {
+            try {
+                const flatPipelines = JSON.parse(stored);
+                const tree = pipelineHelpers.buildTree(flatPipelines);
+                
+                // Find all rejected pipelines (including nested ones)
+                const findRejected = (nodes: HierarchicalPipeline[]): HierarchicalPipeline[] => {
+                    const rejected: HierarchicalPipeline[] = [];
+                    nodes.forEach(node => {
+                        if (node.status === "Rejected") {
+                            rejected.push(node);
+                        }
+                        if (node.children.length > 0) {
+                            rejected.push(...findRejected(node.children));
+                        }
+                    });
+                    return rejected;
+                };
+                
+                setRejectedPipelines(findRejected(tree));
+            } catch (error) {
+                console.error("Failed to load pipelines:", error);
+            }
+        }
+
         const rfqs: RFQ[] = JSON.parse(localStorage.getItem("rfqData") || "[]");
         const preprocess: PreprocessItem[] = JSON.parse(localStorage.getItem("preprocessData") || "[]");
         const postprocess: PostProcessItem[] = JSON.parse(localStorage.getItem("postprocessData") || "[]");
@@ -93,6 +124,42 @@ export default function DashboardPage() {
         <div className="min-h-screen p-8 bg-gray-50">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">Hi, {userName}</h1>
             <p className="text-gray-500 mb-8">Here&apos;s your dashboard for today.</p>
+
+            {/* Rejected Pipelines Alert */}
+            {rejectedPipelines.length > 0 && (
+                <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-lg p-4 shadow">
+                    <div className="flex items-start gap-3">
+                        <XCircle className="text-red-600 mt-0.5 flex-shrink-0" size={24} />
+                        <div className="flex-1">
+                            <h3 className="text-red-800 font-semibold mb-2">
+                                {rejectedPipelines.length} Pipeline{rejectedPipelines.length > 1 ? 's' : ''} Rejected
+                            </h3>
+                            <div className="space-y-2">
+                                {rejectedPipelines.map(pipeline => (
+                                    <div key={pipeline.id} className="bg-white rounded p-3 border border-red-200">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">{pipeline.name}</p>
+                                                {pipeline.rejectionInfo && (
+                                                    <p className="text-sm text-red-700 mt-1">
+                                                        <strong>Reason:</strong> {pipeline.rejectionInfo.reason}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => router.push(`/crm/pipelines/${pipeline.id}`)}
+                                                className="ml-3 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition"
+                                            >
+                                                Review
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <DashboardCard title="Ongoing Works" value={stats.ongoing} icon={<Briefcase />} color="blue" />

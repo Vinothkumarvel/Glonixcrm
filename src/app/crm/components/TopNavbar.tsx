@@ -34,8 +34,7 @@ export default function TopNavbar({ onLogout, onOpenSidebar }: { onLogout?: () =
           <Menu size={18} className="text-white" />
         </button>
         <span className="text-white font-semibold">Glonix Elecronics</span>
-        {/* workspace selector - hide on small screens */}
-        <select className="hidden sm:block bg-green-600 text-white text-sm px-2 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-white">
+        <select className="bg-green-600 text-white text-sm px-2 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-white">
           <option>A</option>
           <option>B</option>
         </select>

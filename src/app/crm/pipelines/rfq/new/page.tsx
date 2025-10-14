@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
-// import { useRouter } from "next/navigation"; // Removed to fix compile error
+import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { RFQ } from "../page";
 
+type Company = {
+  id: string;
+  name: string;
+  industry?: string;
+  location?: string;
+  contact?: string;
+  email?: string;
+  phone?: string;
+  createdAt: string;
+};
+
 export default function NewRFQPage() {
-  // const router = useRouter(); // Removed to fix compile error
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [formData, setFormData] = useState<Omit<RFQ, "id" | "date">>({
     department: "",
     company_name: "",
@@ -18,6 +28,18 @@ export default function NewRFQPage() {
     source: "",
     priority: "Low",
   });
+
+  useEffect(() => {
+    // Load companies from localStorage
+    const stored = localStorage.getItem("companyData");
+    if (stored) {
+      try {
+        setCompanies(JSON.parse(stored));
+      } catch {
+        setCompanies([]);
+      }
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -92,12 +114,44 @@ export default function NewRFQPage() {
                 <option value="Website">Website</option>
                 <option value="Referral">Referral</option>
                 <option value="JD">JD</option>
+                <option value="Digital Marketing">Digital Marketing</option>
+                <option value="Hold Client">Hold Client</option>
             </select>
         </div>
 
         <div>
             <label className="block font-medium text-green-800">Company Name <span className="text-red-500">*</span></label>
-            <input type="text" name="company_name" value={formData.company_name} onChange={handleChange} required className="w-full p-2 border rounded" />
+            {companies.length > 0 ? (
+              <select 
+                name="company_name" 
+                value={formData.company_name} 
+                onChange={handleChange} 
+                required 
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Select Company</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.name}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <input 
+                  type="text" 
+                  name="company_name" 
+                  value={formData.company_name} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full p-2 border rounded" 
+                  placeholder="No companies found - enter manually"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  💡 Tip: Add companies in the <a href="/crm/company" className="text-blue-600 hover:underline">Company List</a> to use dropdown
+                </p>
+              </div>
+            )}
         </div>
 
         <div>
