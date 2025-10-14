@@ -4,16 +4,18 @@ import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Briefcase, Clock, CheckCircle, AlertTriangle, IndianRupee, FileWarning } from 'lucide-react';
 
-// --- TYPE DEFINITIONS (Copied from the first example) ---
+// --- TYPE DEFINITIONS ---
 type RFQ = { id: string; company_name: string; deadline: string; };
 type PreprocessItem = { id: string; company_name: string; deadline: string; project_handled_by: string };
 type PostProcessItem = { id: string; company_name: string; deadline: string; project_handled_by: string };
 type CompletedProject = { id: string; company_name: string; deadline: string; completion_date: string };
 type PaymentPendingItem = { id: string; company_name: string; balance_due: number; };
 type GstPurchaseItem = { id: string; vendor: string; total: number; paymentRequest: string; paymentStatus: 'Paid' | 'Unpaid' | 'Partially paid'; };
+
+// A union type for items that can be overdue
 type OverdueableItem = (RFQ | PreprocessItem | PostProcessItem) & { type: string };
 
-// --- HELPER COMPONENTS (Copied from the first example) ---
+// --- HELPER COMPONENTS ---
 const DashboardCard = ({ title, value, icon, color }: { title: string; value: string | number; icon: React.ReactNode, color: string }) => (
     <div className={`p-6 rounded-lg shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white`}>
         <div className="flex items-center justify-between">
@@ -36,22 +38,19 @@ const OverdueItem = ({ item }: { item: OverdueableItem }) => (
     </div>
 );
 
-
-export default function CRMPage() {
-    // Note: useRouter was imported but not used, so it's removed.
+export default function DashboardPage() {
     const [userName] = useState("User"); // setUserName removed as it was unused
     const [stats, setStats] = useState({
         ongoing: 0,
         pendingRfqs: 0,
         onTime: 0,
         delayed: 0,
-        overdueItems: [] as OverdueableItem[],
+        overdueItems: [] as OverdueableItem[], // Typed correctly
         highPriorityPayments: [] as GstPurchaseItem[],
         customerPendingTotal: 0,
         supplierPendingTotal: 0,
     });
 
-    // --- DATA FETCHING AND CALCULATION LOGIC (Added from the first example) ---
     useEffect(() => {
         const rfqs: RFQ[] = JSON.parse(localStorage.getItem("rfqData") || "[]");
         const preprocess: PreprocessItem[] = JSON.parse(localStorage.getItem("preprocessData") || "[]");
@@ -83,7 +82,6 @@ export default function CRMPage() {
 
     }, []);
 
-    // --- CHART DATA (Defined based on the 'stats' state) ---
     const pieChartData = [
         { name: 'Ongoing', value: stats.ongoing },
         { name: 'On-Time', value: stats.onTime },
@@ -93,7 +91,7 @@ export default function CRMPage() {
 
     return (
         <div className="min-h-screen p-8 bg-gray-50">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Hi, {userName} 👋</h1>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Hi, {userName}</h1>
             <p className="text-gray-500 mb-8">Here&apos;s your dashboard for today.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
