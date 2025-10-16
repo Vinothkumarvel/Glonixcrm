@@ -2,10 +2,13 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
-// This is a redirect page that will send users to the first pipeline's RFQ section
-export default function RFQRedirect() {
+// This is a redirect page that will send users to the specific RFQ under the first pipeline
+export default function RFQItemRedirect() {
   const router = useRouter();
+  const params = useParams();
+  const rfqId = params?.id as string;
 
   useEffect(() => {
     // Try to load from localStorage
@@ -24,19 +27,18 @@ export default function RFQRedirect() {
       }
     }
     
-    // If we found a default pipeline, redirect to its RFQ section
-    if (defaultPipeline) {
-      router.replace(`/crm/pipelines/${defaultPipeline}/rfq`);
+    // If we found a default pipeline, redirect to the specific RFQ under that pipeline
+    if (defaultPipeline && rfqId) {
+      router.replace(`/crm/pipelines/${defaultPipeline}/rfq/${rfqId}`);
     } else {
-      // If no pipeline exists, redirect to the main pipelines page
-      // which will create a default pipeline
+      // If no pipeline exists or no RFQ ID, redirect to the main pipelines page
       router.replace('/crm/pipelines');
     }
-  }, [router]);
+  }, [router, rfqId]);
 
   return (
     <div className="flex justify-center items-center h-screen">
-      <p className="text-xl text-gray-500">Redirecting to RFQ section...</p>
+      <p className="text-xl text-gray-500">Redirecting to RFQ details...</p>
     </div>
   );
 }

@@ -40,7 +40,6 @@ function getStorageKeyForTab(tab: string) {
 
 const NAV_ITEMS: NavItem[] = [
   {id: "dashboard", label: "Dashboard", href: "/crm", Icon: Flag },
-  { id: "pipelines", label: "Pipelines", href: "/crm/pipelines/rfq", Icon: Layers },
   { id: "contacts", label: "Contacts", href: "/crm/contacts", Icon: Users },
   {
     id: "companies",
@@ -71,6 +70,10 @@ export default function Sidebar({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [hierarchicalPipelines, setHierarchicalPipelines] = useState<HierarchicalPipeline[]>([]);
+  const [pipelinesExpanded, setPipelinesExpanded] = useState(false);
+
+  // Standard pipeline stages
+
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -97,21 +100,9 @@ export default function Sidebar({
   const handleUpdatePipelines = (updated: HierarchicalPipeline[]) => {
     setHierarchicalPipelines(updated);
     
-    // Filter out pipelines without content before saving
-    const pipelinesWithContent = updated.filter(pipeline => {
-      // Check if pipeline has content
-      const hasContent = pipelineHelpers.hasContent(pipeline);
-      
-      // Also check children recursively
-      const checkChildren = (p: HierarchicalPipeline): boolean => {
-        if (pipelineHelpers.hasContent(p)) return true;
-        return p.children.some(child => checkChildren(child));
-      };
-      
-      return hasContent || checkChildren(pipeline);
-    });
-    
-    const flatPipelines = pipelineHelpers.flattenTree(pipelinesWithContent);
+    // Save all pipelines to localStorage (including empty ones)
+    // We want to keep new pipelines even without items so they can be accessed
+    const flatPipelines = pipelineHelpers.flattenTree(updated);
     localStorage.setItem("hierarchicalPipelines", JSON.stringify(flatPipelines));
   };
 
@@ -143,12 +134,11 @@ export default function Sidebar({
     // Add to TOP of list (prepend)
     const updated = [newPipeline, ...hierarchicalPipelines];
     
-    // Note: Pipeline will only be persisted if it has content (items)
-    // This is handled in the save logic
+    // Save immediately to localStorage (including empty pipelines)
     handleUpdatePipelines(updated);
 
-    // Navigate to the new pipeline
-    router.push(`/crm/pipelines/${newPipeline.id}`);
+    // Navigate to the new pipeline's RFQ stage
+    router.push(`/crm/pipelines/${newPipeline.id}/rfq`);
   };
 
   return (
@@ -157,7 +147,7 @@ export default function Sidebar({
       <aside
         className={`hidden md:flex flex-col ${
           collapsed ? "w-14" : "w-52"
-        } bg-[#0f2230] text-white transition-all duration-200 sticky top-12 z-40 h-[calc(100vh-3rem)]`}
+        } bg-[#0f2230] text-white transition-all duration-200 sticky top-0 z-40 h-screen`}
         aria-label="left sidebar"
       >
         {/* Workspace / Brand */}
@@ -212,33 +202,59 @@ export default function Sidebar({
                 </li>
               );
             })}
+
+            {/* Pipelines Dropdown Section */}
+            {!collapsed && (
+              <li>
+                <button
+                  onClick={() => setPipelinesExpanded(!pipelinesExpanded)}
+                  className={`flex items-center gap-2 py-1.5 px-2 rounded-md mx-1 text-xs hover:bg-white/10 transition w-full ${
+                    pathname?.startsWith("/crm/pipelines") ? "bg-white/10 font-medium" : "text-white/80"
+                  }`}
+                >
+                  <span className="flex items-center justify-center w-6">
+                    <Layers size={16} />
+                  </span>
+                  <span className="flex-1 text-left">Pipelines</span>
+                  <Plus
+                    size={12}
+                    className={`${pipelinesExpanded ? "rotate-45" : "rotate-0"} transition`}
+                  />
+                </button>
+
+                {/* Pipelines Submenu */}
+                {pipelinesExpanded && (
+                  <div className="mt-1 ml-4 space-y-1">
+                    {/* Add Pipeline Button */}
+                    <button
+                      onClick={handleAddPipeline}
+                      className="w-full flex items-center gap-2 py-1.5 px-2 rounded-md text-xs bg-emerald-600 hover:bg-emerald-700 transition font-medium"
+                    >
+                      <Plus size={14} />
+                      <span>Add Pipeline</span>
+                    </button>
+
+
+                    {/* Custom Pipelines Tree */}
+                    {hierarchicalPipelines.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
+                          Custom Pipelines
+                        </div>
+                        <PipelineTreeView 
+                          pipelines={hierarchicalPipelines} 
+                          onUpdate={handleUpdatePipelines}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </li>
+            )}
           </ul>
 
-          {/* Hierarchical Pipelines Tree */}
-          {!collapsed && (
-            <div className="mt-3 px-2">
-              <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
-                Custom Pipelines
-              </div>
-              <PipelineTreeView 
-                pipelines={hierarchicalPipelines} 
-                onUpdate={handleUpdatePipelines}
-              />
-            </div>
-          )}
-
-          {/* Add Pipeline Button - appears below custom pipelines */}
-          {!collapsed && (
-            <div className="mt-2 px-2">
-              <button
-                onClick={handleAddPipeline}
-                className="w-full flex items-center gap-2 py-2 px-3 rounded-md text-xs bg-emerald-600 hover:bg-emerald-700 transition font-medium"
-              >
-                <Plus size={14} />
-                <span>Add Pipeline</span>
-              </button>
-            </div>
-          )}
+          {/* Hierarchical Pipelines Tree - REMOVED (moved to dropdown) */}
+          {/* Add Pipeline Button - REMOVED (moved to dropdown) */}
         </nav>
 
         {/* User */}
@@ -304,32 +320,63 @@ export default function Sidebar({
                 </li>
               );
             })}
+
+            {/* Pipelines Dropdown Section - Mobile */}
+            <li>
+              <button
+                onClick={() => setPipelinesExpanded(!pipelinesExpanded)}
+                className={`flex items-center gap-2 py-1.5 px-2 rounded-md mx-1 text-xs hover:bg-white/10 transition w-full ${
+                  pathname?.startsWith("/crm/pipelines") ? "bg-white/10 font-medium" : "text-white/80"
+                }`}
+              >
+                <span className="flex items-center justify-center w-6">
+                  <Layers size={16} />
+                </span>
+                <span className="flex-1 text-left">Pipelines</span>
+                <Plus
+                  size={12}
+                  className={`${pipelinesExpanded ? "rotate-45" : "rotate-0"} transition`}
+                />
+              </button>
+
+              {/* Pipelines Submenu - Mobile */}
+              {pipelinesExpanded && (
+                <div className="mt-1 ml-4 space-y-1">
+                  {/* Add Pipeline Button */}
+                  <button
+                    onClick={() => {
+                      handleAddPipeline();
+                      onMobileClose && onMobileClose();
+                    }}
+                    className="w-full flex items-center gap-2 py-1.5 px-2 rounded-md text-xs bg-emerald-600 hover:bg-emerald-700 transition font-medium"
+                  >
+                    <Plus size={14} />
+                    <span>Add Pipeline</span>
+                  </button>
+
+                  {/* Standard Pipelines */}
+                  <div className="mt-2">
+                    <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
+                      Standard Pipelines
+                    </div>
+                  </div>
+
+                  {/* Custom Pipelines Tree - Mobile */}
+                  {hierarchicalPipelines.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
+                        Custom Pipelines
+                      </div>
+                      <PipelineTreeView 
+                        pipelines={hierarchicalPipelines} 
+                        onUpdate={handleUpdatePipelines}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
           </ul>
-
-          {/* Hierarchical Pipelines Tree - Mobile */}
-          <div className="mt-3 px-2">
-            <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
-              Custom Pipelines
-            </div>
-            <PipelineTreeView 
-              pipelines={hierarchicalPipelines} 
-              onUpdate={handleUpdatePipelines}
-            />
-          </div>
-
-          {/* Add Pipeline Button - Mobile */}
-          <div className="mt-2 px-2">
-            <button
-              onClick={() => {
-                handleAddPipeline();
-                onMobileClose && onMobileClose();
-              }}
-              className="w-full flex items-center gap-2 py-2 px-3 rounded-md text-xs bg-emerald-600 hover:bg-emerald-700 transition font-medium"
-            >
-              <Plus size={14} />
-              <span>Add Pipeline</span>
-            </button>
-          </div>
         </nav>
 
         <div className="px-2 py-2 border-t border-white/10">

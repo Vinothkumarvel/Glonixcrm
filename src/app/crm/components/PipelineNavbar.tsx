@@ -1,60 +1,96 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useParams } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
+import { STANDARD_PIPELINE_STAGES, HierarchicalPipeline, pipelineHelpers } from "@/types/pipeline";
 
-type Pipeline = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  createdAt: string;
-  hasContent: boolean;
+// Convert stage names to URL-friendly slugs that match the folder structure
+const stageToSlug = (stage: string): string => {
+  const slugMap: Record<string, string> = {
+    "RFQ": "rfq",
+    "Feasibility": "feasibility",
+    "Quotation": "quotation",
+    "Negotiation": "negotiation",
+    "Closed Deals": "closed-deals",
+    "Pre-Process": "preprocess",
+    "Post-Process": "postprocess",
+    "Payment Pending": "payment-pending",
+    "Completed Projects": "completed-projects"
+  };
+  return slugMap[stage] || stage.toLowerCase().replace(/\s+/g, '-');
 };
 
 export default function PipelineNavbar() {
   const router = useRouter();
   const pathname = usePathname();
-  const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
+  const params = useParams();
+  const [allPipelines, setAllPipelines] = useState<HierarchicalPipeline[]>([]);
+  const [currentPipeline, setCurrentPipeline] = useState<HierarchicalPipeline | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Standard pipelines (always visible)
-  const standardPipelines = [
-    { id: "rfq", name: "Rfq", path: "/crm/pipelines/rfq" },
-    { id: "feasibility", name: "Feasibility", path: "/crm/pipelines/feasibility" },
-    { id: "quotation", name: "Quotation", path: "/crm/pipelines/quotation" },
-    { id: "negotiation", name: "Negotiation", path: "/crm/pipelines/negotiation" },
-    { id: "closed-deals", name: "Closed deals", path: "/crm/pipelines/closed-deals" },
-    { id: "preprocess", name: "Preprocess", path: "/crm/pipelines/preprocess" },
-    { id: "postprocess", name: "Postprocess", path: "/crm/pipelines/postprocess" },
-    { id: "payment-pending", name: "Payment pending", path: "/crm/pipelines/payment-pending" },
-    { id: "completed-projects", name: "Completed projects", path: "/crm/pipelines/completed-projects" },
-  ];
+  // Generate standard pipelines from STANDARD_PIPELINE_STAGES
+  const standardPipelines = STANDARD_PIPELINE_STAGES.map(stage => ({
+    id: stageToSlug(stage),
+    name: stage,
+    path: `/crm/pipelines/${stageToSlug(stage)}`
+  }));
 
   useEffect(() => {
     // Load custom pipelines from localStorage
     const stored = localStorage.getItem("hierarchicalPipelines");
     if (stored) {
       try {
-        const pipelines: Pipeline[] = JSON.parse(stored);
-        // Only show pipelines with content
-        const withContent = pipelines.filter(p => p.hasContent);
-        setAllPipelines(withContent);
+        const flatPipelines = JSON.parse(stored);
+        const tree = pipelineHelpers.buildTree(flatPipelines);
+        
+        setAllPipelines(tree);
+        
+        // Check if we're viewing a custom pipeline
+        const pipelineId = params?.pipelineId as string;
+        if (pipelineId) {
+          const found = pipelineHelpers.findById(tree, pipelineId);
+          setCurrentPipeline(found);
+        } else {
+          setCurrentPipeline(null);
+        }
       } catch {
         setAllPipelines([]);
+        setCurrentPipeline(null);
       }
     }
-  }, [pathname]); // Reload when route changes
+  }, [pathname, params]); // Reload when route changes
 
   const isActive = (path: string) => pathname?.startsWith(path);
+  
   const getCurrentPipelineName = () => {
+    // If we're on a custom pipeline, show its name
+    if (currentPipeline) {
+      return currentPipeline.name;
+    }
+    
+    // Otherwise, check standard pipelines
     const current = standardPipelines.find(p => pathname?.startsWith(p.path));
     if (current) return current.name;
     
-    const customId = pathname?.split("/").pop();
-    const custom = allPipelines.find(p => p.id === customId);
-    return custom?.name || "Pipeline";
+    return "Pipelines";
   };
+
+  // Get all pipelines (including nested ones and empty pipelines)
+  const getAllPipelines = (pipelines: HierarchicalPipeline[]): HierarchicalPipeline[] => {
+    const result: HierarchicalPipeline[] = [];
+    
+    const traverse = (pipeline: HierarchicalPipeline) => {
+      // Include all pipelines, even without content
+      result.push(pipeline);
+      pipeline.children.forEach(traverse);
+    };
+    
+    pipelines.forEach(traverse);
+    return result;
+  };
+
+  const pipelinesWithContent = getAllPipelines(allPipelines);
 
   return (
     <div className="bg-white border-b shadow-sm sticky top-12 z-40">
@@ -77,10 +113,10 @@ export default function PipelineNavbar() {
           ))}
 
           {/* Custom Pipelines with Content */}
-          {allPipelines.filter(p => p.hasContent).map((pipeline) => (
+          {pipelinesWithContent.map((pipeline) => (
             <button
               key={pipeline.id}
-              onClick={() => router.push(`/crm/pipelines/custom/${pipeline.id}`)}
+              onClick={() => router.push(`/crm/pipelines/${pipeline.id}/rfq`)}
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors duration-300 ${
                 pathname?.includes(pipeline.id)
                   ? "text-white border-green-500 bg-blue-900"
@@ -132,19 +168,22 @@ export default function PipelineNavbar() {
                   </div>
 
                   {/* Custom Pipelines Section */}
-                  {allPipelines.filter(p => p.hasContent).length > 0 && (
+                  {pipelinesWithContent.length > 0 && (
                     <div className="p-2">
                       <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Custom Pipelines</p>
-                      {allPipelines.filter(p => p.hasContent).map((pipeline) => (
+                      {pipelinesWithContent.map((pipeline) => (
                         <button
                           key={pipeline.id}
                           onClick={() => {
-                            router.push(`/crm/pipelines/custom/${pipeline.id}`);
+                            router.push(`/crm/pipelines/${pipeline.id}/rfq`);
                             setIsDropdownOpen(false);
                           }}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
                         >
                           {pipeline.name}
+                          {pipeline.parentId && (
+                            <span className="ml-2 text-xs text-gray-500">(Sub-Pipeline)</span>
+                          )}
                         </button>
                       ))}
                     </div>

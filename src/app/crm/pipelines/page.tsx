@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { v4 as uuidv4 } from 'uuid';
 
-// This is a redirect page that will send users to the first pipeline's RFQ section
-export default function RFQRedirect() {
+export default function PipelinesPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -24,19 +24,27 @@ export default function RFQRedirect() {
       }
     }
     
-    // If we found a default pipeline, redirect to its RFQ section
+    // If no pipelines found, create a default one
+    if (!defaultPipeline) {
+      const defaultPipelineId = uuidv4();
+      const defaultPipelines = [{
+        id: defaultPipelineId,
+        name: 'Default Pipeline',
+        parentId: null
+      }];
+      localStorage.setItem('hierarchicalPipelines', JSON.stringify(defaultPipelines));
+      defaultPipeline = defaultPipelineId;
+    }
+    
+    // Redirect to the default pipeline's RFQ
     if (defaultPipeline) {
-      router.replace(`/crm/pipelines/${defaultPipeline}/rfq`);
-    } else {
-      // If no pipeline exists, redirect to the main pipelines page
-      // which will create a default pipeline
-      router.replace('/crm/pipelines');
+      router.push(`/crm/pipelines/${defaultPipeline}/rfq`);
     }
   }, [router]);
 
   return (
     <div className="flex justify-center items-center h-screen">
-      <p className="text-xl text-gray-500">Redirecting to RFQ section...</p>
+      <p className="text-xl text-gray-500">Loading pipeline...</p>
     </div>
   );
 }

@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import TopNavbar from "./components/TopNavbar";
 
 export default function CRMLayout({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Navbar with mobile sidebar toggle */}
+    <div className="flex min-h-screen flex-col">
+      {/* Top Navigation Bar - appears on all CRM pages */}
       <TopNavbar onOpenSidebar={() => setMobileSidebarOpen(true)} />
 
       <div className="flex flex-1">
@@ -26,8 +28,8 @@ export default function CRMLayout({ children }: { children: React.ReactNode }) {
           />
         </div>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4">{children}</main>
+        {/* Page Content - children will include their own navbars if needed */}
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

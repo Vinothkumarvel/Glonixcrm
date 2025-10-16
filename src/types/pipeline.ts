@@ -55,16 +55,18 @@ export type ActivityLog = {
   details?: string;
 };
 
-// Standard pipeline stages that every pipeline must have
+// Standard pipeline stages that all pipelines should have
+// Order: RFQ → Feasibility → Quotation → Negotiation → Closed Deals → Pre-Process → Post-Process → Payment Pending → Completed Projects
 export const STANDARD_PIPELINE_STAGES = [
   "RFQ",
   "Feasibility",
   "Quotation",
-  "Closed",
-  "Post-Processing",
-  "Pre-Processing",
-  "Payment",
-  "Completed"
+  "Negotiation",
+  "Closed Deals",
+  "Pre-Process",
+  "Post-Process",
+  "Payment Pending",
+  "Completed Projects"
 ] as const;
 
 // Hierarchical pipeline node

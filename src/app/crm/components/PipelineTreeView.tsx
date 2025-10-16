@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ChevronRight, ChevronDown, Plus, Edit2, Trash2, Layers } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Edit2, Trash2, Layers, MoreVertical } from "lucide-react";
 import { HierarchicalPipeline, pipelineHelpers } from "@/types/pipeline";
 
 type PipelineTreeNodeProps = {
@@ -12,6 +12,7 @@ type PipelineTreeNodeProps = {
   expandedIds: Set<string>;
   editingId: string | null;
   editingName: string;
+  contextMenuId: string | null;
   onToggleExpand: (id: string) => void;
   onSelect: (id: string) => void;
   onStartEdit: (id: string, currentName: string) => void;
@@ -20,6 +21,7 @@ type PipelineTreeNodeProps = {
   onAddSubPipeline: (parentId: string) => void;
   onDelete: (id: string) => void;
   setEditingName: (name: string) => void;
+  onToggleContextMenu: (id: string | null) => void;
 };
 
 function PipelineTreeNode({
@@ -29,6 +31,7 @@ function PipelineTreeNode({
   expandedIds,
   editingId,
   editingName,
+  contextMenuId,
   onToggleExpand,
   onSelect,
   onStartEdit,
@@ -37,14 +40,31 @@ function PipelineTreeNode({
   onAddSubPipeline,
   onDelete,
   setEditingName,
+  onToggleContextMenu,
 }: PipelineTreeNodeProps) {
   const hasChildren = pipeline.children.length > 0;
   const isExpanded = expandedIds.has(pipeline.id);
   const isEditing = editingId === pipeline.id;
+  const showContextMenu = contextMenuId === pipeline.id;
   const indentStyle = { paddingLeft: `${depth * 16 + 8}px` };
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        onToggleContextMenu(null);
+      }
+    };
+
+    if (showContextMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showContextMenu, onToggleContextMenu]);
 
   return (
-    <div className="select-none">
+    <div className="select-none relative">
       {/* Pipeline Item */}
       <div
         style={indentStyle}
@@ -89,53 +109,81 @@ function PipelineTreeNode({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <button
-            onClick={() => onSelect(pipeline.id)}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              onStartEdit(pipeline.id, pipeline.name);
-            }}
-            className="flex-1 text-left truncate"
-            title="Double-click to rename"
-          >
-            {pipeline.name}
-          </button>
+          <div className="flex-1 min-w-0">
+            <button
+              onClick={() => onSelect(pipeline.id)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                onStartEdit(pipeline.id, pipeline.name);
+              }}
+              className="text-left truncate block w-full"
+              title={`Double-click to rename\nUUID: ${pipeline.id}`}
+            >
+              <div className="font-medium">{pipeline.name}</div>
+              <div className="text-[10px] text-white/50 truncate font-mono">
+                {pipeline.id}
+              </div>
+            </button>
+          </div>
         )}
 
-        {/* Action Buttons (visible on hover) */}
-        <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Context Menu Button (visible on hover) */}
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleContextMenu(showContextMenu ? null : pipeline.id);
+            }}
+            className="p-0.5 hover:bg-white/20 rounded"
+            title="More options"
+          >
+            <MoreVertical size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Dropdown Context Menu */}
+      {showContextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="absolute left-0 mt-1 ml-2 bg-white rounded-md shadow-lg z-50 py-1 min-w-[160px]"
+          style={{ marginLeft: `${depth * 16 + 8}px` }}
+        >
           <button
             onClick={(e) => {
               e.stopPropagation();
               onAddSubPipeline(pipeline.id);
+              onToggleContextMenu(null);
             }}
-            className="p-0.5 hover:bg-emerald-600 rounded"
-            title="Add Sub-Pipeline"
+            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
           >
-            <Plus size={12} />
+            <Plus size={14} />
+            Add Sub-Pipeline
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onStartEdit(pipeline.id, pipeline.name);
+              onToggleContextMenu(null);
             }}
-            className="p-0.5 hover:bg-blue-600 rounded"
-            title="Rename"
+            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
           >
-            <Edit2 size={12} />
+            <Edit2 size={14} />
+            Rename
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete(pipeline.id);
+              onToggleContextMenu(null);
             }}
-            className="p-0.5 hover:bg-red-600 rounded"
-            title="Delete"
+            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <Trash2 size={12} />
+            <Trash2 size={14} />
+            Delete
           </button>
         </div>
-      </div>
+      )}
 
       {/* Children (recursive) */}
       {hasChildren && isExpanded && (
@@ -148,6 +196,7 @@ function PipelineTreeNode({
               expandedIds={expandedIds}
               editingId={editingId}
               editingName={editingName}
+              contextMenuId={contextMenuId}
               onToggleExpand={onToggleExpand}
               onSelect={onSelect}
               onStartEdit={onStartEdit}
@@ -156,6 +205,7 @@ function PipelineTreeNode({
               onAddSubPipeline={onAddSubPipeline}
               onDelete={onDelete}
               setEditingName={setEditingName}
+              onToggleContextMenu={onToggleContextMenu}
             />
           ))}
         </div>
@@ -182,6 +232,7 @@ export default function PipelineTreeView({ pipelines, onUpdate }: PipelineTreeVi
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [contextMenuId, setContextMenuId] = useState<string | null>(null);
 
   const handleToggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -195,8 +246,13 @@ export default function PipelineTreeView({ pipelines, onUpdate }: PipelineTreeVi
     });
   };
 
+  const handleToggleContextMenu = (id: string | null) => {
+    setContextMenuId(id);
+  };
+
   const handleSelect = (id: string) => {
-    router.push(`/crm/pipelines/${id}`);
+    // Navigate to pipeline's RFQ stage
+    router.push(`/crm/pipelines/${id}/rfq`);
   };
 
   const handleStartEdit = (id: string, currentName: string) => {
@@ -325,6 +381,7 @@ export default function PipelineTreeView({ pipelines, onUpdate }: PipelineTreeVi
             expandedIds={expandedIds}
             editingId={editingId}
             editingName={editingName}
+            contextMenuId={contextMenuId}
             onToggleExpand={handleToggleExpand}
             onSelect={handleSelect}
             onStartEdit={handleStartEdit}
@@ -333,6 +390,7 @@ export default function PipelineTreeView({ pipelines, onUpdate }: PipelineTreeVi
             onAddSubPipeline={handleAddSubPipeline}
             onDelete={handleDelete}
             setEditingName={setEditingName}
+            onToggleContextMenu={handleToggleContextMenu}
           />
         ))
       )}
