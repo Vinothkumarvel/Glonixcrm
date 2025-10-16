@@ -32,14 +32,14 @@ const LoadingSkeleton = () => (
     </div>
 );
 
-const NotFound = () => {
+const NotFound = ({ pipelineId }: { pipelineId: string }) => {
     const router = useRouter();
     return (
         <div className="text-center p-10">
             <h2 className="text-2xl font-bold text-gray-700 mb-4">Feasibility Item Not Found</h2>
             <p className="text-gray-500 mb-6">The item you are looking for does not exist or may have been deleted.</p>
             <button
-                onClick={() => router.push("/crm/pipelines/feasibility")}
+                onClick={() => router.push(`/crm/pipelines/${pipelineId}/feasibility`)}
                 className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700"
             >
                 Return to Feasibility List
@@ -87,6 +87,7 @@ export default function ViewFeasibilityPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
+    const pipelineId = params?.pipelineId as string;
     
     const [item, setItem] = useState<Feasibility | null>(null);
     const [loading, setLoading] = useState(true);
@@ -115,7 +116,7 @@ export default function ViewFeasibilityPage() {
     }, [id]);
 
     if (loading) return <LoadingSkeleton />;
-    if (error || !item) return <NotFound />;
+    if (error || !item) return <NotFound pipelineId={pipelineId} />;
 
     return (
         <div className="min-h-screen p-4 sm:p-6 bg-gray-50">
@@ -126,7 +127,7 @@ export default function ViewFeasibilityPage() {
                         <h1 className="text-3xl font-bold text-green-700">Feasibility Details</h1>
                         <p className="text-gray-500 mt-1">Viewing details for: <span className="font-semibold text-gray-700">{item.company_name}</span></p>
                     </div>
-                    <button onClick={() => router.push('/crm/pipelines/feasibility')} className="px-5 py-2 text-white font-semibold bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
+                    <button onClick={() => router.push(`/crm/pipelines/${pipelineId}/feasibility`)} className="px-5 py-2 text-white font-semibold bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
                         Back to List
                     </button>
                 </header>

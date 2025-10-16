@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Briefcase, Clock, CheckCircle, AlertTriangle, IndianRupee, FileWarning } from 'lucide-react';
+import { STORAGE_KEYS } from '@/constants/storage';
+import { readJson } from '@/utils/storage';
 
 // --- TYPE DEFINITIONS (Copied from the first example) ---
 type RFQ = { id: string; company_name: string; deadline: string; };
@@ -14,8 +16,17 @@ type GstPurchaseItem = { id: string; vendor: string; total: number; paymentReque
 type OverdueableItem = (RFQ | PreprocessItem | PostProcessItem) & { type: string };
 
 // --- HELPER COMPONENTS (Copied from the first example) ---
-const DashboardCard = ({ title, value, icon, color }: { title: string; value: string | number; icon: React.ReactNode, color: string }) => (
-    <div className={`p-6 rounded-lg shadow-lg bg-gradient-to-br from-${color}-500 to-${color}-600 text-white`}>
+const CARD_VARIANTS = {
+    blue: "from-blue-500 to-blue-600",
+    yellow: "from-yellow-500 to-yellow-600",
+    red: "from-red-500 to-red-600",
+    green: "from-green-500 to-green-600"
+} as const;
+
+type CardVariant = keyof typeof CARD_VARIANTS;
+
+const DashboardCard = ({ title, value, icon, variant }: { title: string; value: string | number; icon: React.ReactNode; variant: CardVariant }) => (
+    <div className={`p-6 rounded-lg shadow-lg bg-gradient-to-br ${CARD_VARIANTS[variant]} text-white`}>
         <div className="flex items-center justify-between">
             <div>
                 <p className="text-lg font-semibold">{title}</p>
@@ -53,12 +64,12 @@ export default function CRMPage() {
 
     // --- DATA FETCHING AND CALCULATION LOGIC (Added from the first example) ---
     useEffect(() => {
-        const rfqs: RFQ[] = JSON.parse(localStorage.getItem("rfqData") || "[]");
-        const preprocess: PreprocessItem[] = JSON.parse(localStorage.getItem("preprocessData") || "[]");
-        const postprocess: PostProcessItem[] = JSON.parse(localStorage.getItem("postprocessData") || "[]");
-        const completed: CompletedProject[] = JSON.parse(localStorage.getItem("completedProjectsData") || "[]");
-        const paymentPending: PaymentPendingItem[] = JSON.parse(localStorage.getItem("paymentPendingData") || "[]");
-        const gstPurchases: GstPurchaseItem[] = JSON.parse(localStorage.getItem("gstPurchaseData") || "[]");
+    const rfqs = readJson<RFQ[]>(STORAGE_KEYS.RFQ, []);
+    const preprocess = readJson<PreprocessItem[]>(STORAGE_KEYS.PREPROCESS, []);
+    const postprocess = readJson<PostProcessItem[]>(STORAGE_KEYS.POSTPROCESS, []);
+    const completed = readJson<CompletedProject[]>(STORAGE_KEYS.COMPLETED_PROJECTS, []);
+    const paymentPending = readJson<PaymentPendingItem[]>(STORAGE_KEYS.PAYMENT_PENDING, []);
+    const gstPurchases = readJson<GstPurchaseItem[]>(STORAGE_KEYS.GST_PURCHASE, []);
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -89,7 +100,7 @@ export default function CRMPage() {
         { name: 'On-Time', value: stats.onTime },
         { name: 'Delayed', value: stats.delayed },
     ];
-    const COLORS = ['#0088FE', '#00ffd0ff', '#FF8042'];
+    const COLORS = ['#0088FE', '#00FFD0', '#FF8042'];
 
     return (
         <div className="min-h-screen p-8 bg-gray-50">
@@ -97,10 +108,10 @@ export default function CRMPage() {
             <p className="text-gray-500 mb-8">Here&apos;s your dashboard for today.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <DashboardCard title="Ongoing Works" value={stats.ongoing} icon={<Briefcase />} color="blue" />
-                <DashboardCard title="Pending RFQs" value={stats.pendingRfqs} icon={<Clock />} color="yellow" />
-                <DashboardCard title="Overdue Tasks" value={stats.overdueItems.length} icon={<AlertTriangle />} color="red" />
-                <DashboardCard title="Completed On-Time" value={stats.onTime} icon={<CheckCircle />} color="green" />
+                <DashboardCard title="Ongoing Works" value={stats.ongoing} icon={<Briefcase />} variant="blue" />
+                <DashboardCard title="Pending RFQs" value={stats.pendingRfqs} icon={<Clock />} variant="yellow" />
+                <DashboardCard title="Overdue Tasks" value={stats.overdueItems.length} icon={<AlertTriangle />} variant="red" />
+                <DashboardCard title="Completed On-Time" value={stats.onTime} icon={<CheckCircle />} variant="green" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

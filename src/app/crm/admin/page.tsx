@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { 
@@ -17,56 +17,128 @@ import {
   XCircle,
   User as UserIcon
 } from "lucide-react";
-import { HierarchicalPipeline, pipelineHelpers } from "@/types/pipeline";
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
-
-// Mock user data - in production, this would come from your auth system
-const MOCK_USERS: User[] = [
-  { id: "user1", name: "John Doe", email: "john@example.com", role: "Sales" },
-  { id: "user2", name: "Jane Smith", email: "jane@example.com", role: "Marketing" },
-  { id: "user3", name: "Bob Johnson", email: "bob@example.com", role: "Operations" },
-];
+import { HierarchicalPipeline, pipelineHelpers, type FlatPipeline } from "@/types/pipeline";
+import { MOCK_USERS, type PipelineStatistics, type RejectionModalInfo } from "./data";
+import { HIERARCHICAL_PIPELINES_KEY, USER_PIPELINE_VISIBILITY_KEY } from "./constants";
+import { readJson, writeJson } from "@/utils/storage";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [allPipelines, setAllPipelines] = useState<HierarchicalPipeline[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [expandedPipelines, setExpandedPipelines] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<"All" | "Active" | "Pending" | "Rejected" | "Completed">("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [rejectionModal, setRejectionModal] = useState<{ pipelineId: string; pipelineName: string } | null>(null);
+  const [rejectionModal, setRejectionModal] = useState<RejectionModalInfo | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [userPipelineVisibility, setUserPipelineVisibility] = useState<Record<string, string[]>>({});
+  const [showVisibilityPanel, setShowVisibilityPanel] = useState(false);
 
   useEffect(() => {
-    loadPipelines();
-  }, []);
-
-  const loadPipelines = () => {
-    const stored = localStorage.getItem("hierarchicalPipelines");
-    if (stored) {
-      try {
-        const flatPipelines = JSON.parse(stored);
-        const tree = pipelineHelpers.buildTree(flatPipelines);
-        setAllPipelines(tree);
-      } catch (error) {
-        console.error("Failed to load pipelines:", error);
+    try {
+      const storedPipelines = readJson<FlatPipeline[]>(HIERARCHICAL_PIPELINES_KEY, []);
+      if (storedPipelines.length > 0) {
+        setAllPipelines(pipelineHelpers.buildTree(storedPipelines));
+      } else {
         setAllPipelines([]);
       }
+    } catch (error) {
+      console.error("Failed to load pipelines:", error);
+      setAllPipelines([]);
     }
+
+    const storedVisibility = readJson<Record<string, string[]>>(USER_PIPELINE_VISIBILITY_KEY, {});
+    setUserPipelineVisibility(storedVisibility);
+  }, []);
+
+  const saveUserPipelineVisibility = useCallback((visibility: Record<string, string[]>) => {
+    writeJson(USER_PIPELINE_VISIBILITY_KEY, visibility);
+  }, []);
+
+  const togglePipelineVisibilityForUser = useCallback((userId: string, pipelineId: string) => {
+    setUserPipelineVisibility((previous) => {
+      const currentAssignments = new Set(previous[userId] ?? []);
+      if (currentAssignments.has(pipelineId)) {
+        currentAssignments.delete(pipelineId);
+      } else {
+        currentAssignments.add(pipelineId);
+      }
+
+      const nextVisibility = {
+        ...previous,
+        [userId]: Array.from(currentAssignments)
+      };
+
+      saveUserPipelineVisibility(nextVisibility);
+      return nextVisibility;
+    });
+  }, [saveUserPipelineVisibility]);
+
+  const isPipelineVisibleToUser = (userId: string, pipelineId: string): boolean => {
+    return userPipelineVisibility[userId]?.includes(pipelineId) ?? false;
   };
 
-  const savePipelines = (updatedTree: HierarchicalPipeline[]) => {
-    const flat = pipelineHelpers.flattenTree(updatedTree);
-    localStorage.setItem("hierarchicalPipelines", JSON.stringify(flat));
-    setAllPipelines(updatedTree);
+  // Recursive function to render pipelines with sub-pipelines in visibility panel
+  const renderPipelineVisibilityItem = (userId: string, pipeline: HierarchicalPipeline, depth: number = 0) => {
+    const isVisible = isPipelineVisibleToUser(userId, pipeline.id);
+    const hasChildren = pipeline.children.length > 0;
+    const indentStyle = { paddingLeft: `${depth * 24}px` };
+
+    const items = [];
+
+    // Render the current pipeline
+    items.push(
+      <div 
+        key={pipeline.id}
+        style={indentStyle}
+        className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded"
+      >
+        <input
+          type="checkbox"
+          checked={isVisible}
+          onChange={() => togglePipelineVisibilityForUser(userId, pipeline.id)}
+          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+        />
+        <Layers size={16} className="text-blue-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-900 truncate">{pipeline.name}</p>
+            {hasChildren && (
+              <span className="text-xs text-gray-500">
+                ({pipeline.children.length} sub-pipeline{pipeline.children.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500">
+            Status: {pipeline.status} | Created: {format(new Date(pipeline.createdAt), "PP")}
+          </p>
+        </div>
+        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full flex-shrink-0 ${
+          pipeline.status === 'Active' ? 'bg-green-100 text-green-800' :
+          pipeline.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+          pipeline.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+          'bg-blue-100 text-blue-800'
+        }`}>
+          {pipeline.status}
+        </span>
+      </div>
+    );
+
+    // Recursively render children (sub-pipelines)
+    if (hasChildren) {
+      pipeline.children.forEach(child => {
+        items.push(...renderPipelineVisibilityItem(userId, child, depth + 1));
+      });
+    }
+
+    return items;
   };
+
+  const savePipelines = useCallback((updatedTree: HierarchicalPipeline[]) => {
+    const flat = pipelineHelpers.flattenTree(updatedTree);
+    writeJson(HIERARCHICAL_PIPELINES_KEY, flat);
+    setAllPipelines(updatedTree);
+  }, []);
 
   const handleApprovePipeline = (pipelineId: string) => {
     const updateStatus = (nodes: HierarchicalPipeline[]): HierarchicalPipeline[] => {
@@ -163,24 +235,7 @@ export default function AdminDashboard() {
     const isExpanded = expandedPipelines.has(pipeline.id);
     const hasContent = pipelineHelpers.hasContent(pipeline);
     
-    // Filter by status
-    if (filterStatus !== "All" && pipeline.status !== filterStatus) {
-      return null;
-    }
-
-    // Filter by search
-    if (searchQuery && !pipeline.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return null;
-    }
-
     const indentStyle = { paddingLeft: `${depth * 24}px` };
-
-    const statusIcon = {
-      Pending: <Clock className="text-yellow-600" size={16} />,
-      Active: <CheckCircle className="text-green-600" size={16} />,
-      Rejected: <XCircle className="text-red-600" size={16} />,
-      Completed: <CheckCircle className="text-blue-600" size={16} />
-    };
 
     const statusBadge = {
       Pending: "bg-yellow-100 text-yellow-800",
@@ -228,8 +283,12 @@ export default function AdminDashboard() {
                 <UserIcon size={12} />
                 {pipeline.userName || "Unknown User"}
               </span>
-              <span>Created: {format(new Date(pipeline.createdAt), "PPP")}</span>
-              <span>Updated: {format(new Date(pipeline.updatedAt), "PPp")}</span>
+              <span title={`Created: ${format(new Date(pipeline.createdAt), "PPpp")}`}>
+                Created: {format(new Date(pipeline.createdAt), "dd MMM yyyy")}
+              </span>
+              <span title={`Last Updated: ${format(new Date(pipeline.updatedAt), "PPpp")}`}>
+                Updated: {format(new Date(pipeline.updatedAt), "dd MMM yyyy")}
+              </span>
               <span>Stages: {pipeline.stages.length}</span>
               <span>Items: {pipeline.stages.reduce((sum, s) => sum + s.items.length, 0)}</span>
               {hasChildren && <span>Sub-pipelines: {pipeline.children.length}</span>}
@@ -239,7 +298,7 @@ export default function AdminDashboard() {
           {/* Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => router.push(`/crm/pipelines/${pipeline.id}`)}
+              onClick={() => router.push(`/crm/pipelines/${pipeline.id}/rfq`)}
               className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
               title="View Pipeline"
             >
@@ -295,19 +354,57 @@ export default function AdminDashboard() {
     );
   };
 
-  const filteredPipelines = allPipelines.filter(pipeline => {
-    if (filterStatus !== "All" && pipeline.status !== filterStatus) return false;
-    if (searchQuery && !pipeline.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  const flattenedPipelines = useMemo(() => {
+    const collected: HierarchicalPipeline[] = [];
 
-  const stats = {
-    total: allPipelines.length,
-    pending: allPipelines.filter(p => p.status === "Pending").length,
-    active: allPipelines.filter(p => p.status === "Active").length,
-    rejected: allPipelines.filter(p => p.status === "Rejected").length,
-    completed: allPipelines.filter(p => p.status === "Completed").length,
-  };
+    const traverse = (nodes: HierarchicalPipeline[]) => {
+      nodes.forEach((node) => {
+        collected.push(node);
+        if (node.children.length > 0) {
+          traverse(node.children);
+        }
+      });
+    };
+
+    traverse(allPipelines);
+    return collected;
+  }, [allPipelines]);
+
+  const stats = useMemo<PipelineStatistics>(() => {
+    return flattenedPipelines.reduce<PipelineStatistics>((accumulator, pipeline) => {
+      accumulator.total += 1;
+      if (pipeline.status === "Pending") accumulator.pending += 1;
+      if (pipeline.status === "Active") accumulator.active += 1;
+      if (pipeline.status === "Rejected") accumulator.rejected += 1;
+      if (pipeline.status === "Completed") accumulator.completed += 1;
+      return accumulator;
+    }, { total: 0, pending: 0, active: 0, rejected: 0, completed: 0 });
+  }, [flattenedPipelines]);
+
+  const filteredPipelineTree = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    const nodeMatchesFilters = (node: HierarchicalPipeline) => {
+      const statusMatches = filterStatus === "All" || node.status === filterStatus;
+      const searchMatches = !normalizedQuery || node.name.toLowerCase().includes(normalizedQuery);
+      return statusMatches && searchMatches;
+    };
+
+    const applyFilters = (nodes: HierarchicalPipeline[]): HierarchicalPipeline[] => {
+      return nodes.reduce<HierarchicalPipeline[]>((accumulator, node) => {
+        const filteredChildren = applyFilters(node.children);
+        if (nodeMatchesFilters(node) || filteredChildren.length > 0) {
+          accumulator.push({
+            ...node,
+            children: filteredChildren
+          });
+        }
+        return accumulator;
+      }, []);
+    };
+
+    return applyFilters(allPipelines);
+  }, [allPipelines, filterStatus, searchQuery]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -436,7 +533,64 @@ export default function AdminDashboard() {
               </button>
             </div>
           </div>
+          
+          {/* User Visibility Management Button */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <button
+              onClick={() => setShowVisibilityPanel(!showVisibilityPanel)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <UserIcon size={20} />
+              {showVisibilityPanel ? 'Hide' : 'Manage'} User Pipeline Visibility
+            </button>
+          </div>
         </div>
+
+        {/* User Pipeline Visibility Panel */}
+        {showVisibilityPanel && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">User Pipeline Visibility Control</h2>
+            <p className="text-gray-600 mb-6">Select which pipelines each user can see in their dashboard</p>
+            
+            <div className="space-y-6">
+              {MOCK_USERS.map(user => {
+                const userPipelines = userPipelineVisibility[user.id] || [];
+                const visibleCount = userPipelines.length;
+                
+                return (
+                  <div key={user.id} className="border border-gray-200 rounded-lg p-4">
+                    <div 
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => toggleUserExpand(user.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        {expandedUsers.has(user.id) ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                        <UserIcon size={20} className="text-purple-600" />
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                          <p className="text-sm text-gray-500">{user.email} - {user.role}</p>
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium text-purple-600">
+                        {visibleCount} pipeline{visibleCount !== 1 ? 's' : ''} visible
+                      </div>
+                    </div>
+                    
+                    {expandedUsers.has(user.id) && (
+                      <div className="mt-4 pl-8 space-y-2 max-h-96 overflow-y-auto">
+                        {allPipelines.length === 0 ? (
+                          <p className="text-gray-500 text-sm">No pipelines available</p>
+                        ) : (
+                          allPipelines.map(pipeline => renderPipelineVisibilityItem(user.id, pipeline))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Pipelines Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -444,14 +598,14 @@ export default function AdminDashboard() {
             <h2 className="text-lg font-semibold text-gray-900">All Pipelines</h2>
           </div>
 
-          {filteredPipelines.length === 0 ? (
+          {filteredPipelineTree.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <Layers size={48} className="mx-auto mb-4 text-gray-300" />
               <p>No pipelines found</p>
             </div>
           ) : (
             <div className="divide-y">
-              {filteredPipelines.map(pipeline => renderPipelineTree(pipeline))}
+              {filteredPipelineTree.map((pipeline) => renderPipelineTree(pipeline))}
             </div>
           )}
         </div>

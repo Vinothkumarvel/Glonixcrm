@@ -16,6 +16,7 @@ export default function EditFeasibilityPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
+    const pipelineId = params?.pipelineId as string;
     const [formData, setFormData] = useState<Feasibility | null>(null);
     const [dialogState, setDialogState] = useState({
         isOpen: false,
@@ -46,7 +47,7 @@ export default function EditFeasibilityPage() {
         localStorage.setItem("feasibilityData", JSON.stringify(updatedData));
         
         closeDialog();
-        router.push("/crm/pipelines/feasibility");
+        router.push(`/crm/pipelines/${pipelineId}/feasibility`);
     };
     
     const handleSubmit = (e: React.FormEvent) => {
@@ -157,7 +158,7 @@ export default function EditFeasibilityPage() {
                     </div>
 
                     <div className="flex justify-end col-span-2 gap-4 pt-6 mt-4 border-t">
-                        <button type="button" onClick={() => router.push('/crm/pipelines/feasibility')} className="px-6 py-2 font-semibold border rounded bg-gray-100 hover:bg-gray-200">Cancel</button>
+                        <button type="button" onClick={() => router.push(`/crm/pipelines/${pipelineId}/feasibility`)} className="px-6 py-2 font-semibold border rounded bg-gray-100 hover:bg-gray-200">Cancel</button>
                         <button type="submit" className="px-6 py-2 font-semibold text-white bg-green-600 rounded hover:bg-green-700">Update Feasibility</button>
                     </div>
                 </form>

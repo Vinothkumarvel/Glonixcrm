@@ -14,6 +14,9 @@ import {
   MessageSquare,
   ChevronDown
 } from "lucide-react";
+import { STORAGE_KEYS } from "@/constants/storage";
+import { readJson } from "@/utils/storage";
+import { type FlatPipeline } from "@/types/pipeline";
 
 interface PipelineStageNavProps {
   pipelineId: string;
@@ -27,17 +30,14 @@ const PipelineStageNav: React.FC<PipelineStageNavProps> = ({ pipelineId }) => {
 
   useEffect(() => {
     // Load pipeline name from localStorage
-    const stored = localStorage.getItem("hierarchicalPipelines");
-    if (stored) {
-      try {
-        const pipelines = JSON.parse(stored);
-        const pipeline = pipelines.find((p: any) => p.id === pipelineId);
-        if (pipeline) {
-          setPipelineName(pipeline.name);
-        }
-      } catch (e) {
-        console.error("Error loading pipeline name:", e);
+    try {
+      const pipelines = readJson<FlatPipeline[]>(STORAGE_KEYS.HIERARCHICAL_PIPELINES, []);
+      const pipeline = pipelines.find((entry) => entry.id === pipelineId);
+      if (pipeline) {
+        setPipelineName(pipeline.name);
       }
+    } catch (error) {
+      console.error("Error loading pipeline name:", error);
     }
   }, [pipelineId]);
 

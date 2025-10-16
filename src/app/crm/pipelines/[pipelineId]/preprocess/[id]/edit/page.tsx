@@ -61,6 +61,7 @@ export default function EditPreprocessPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
+    const pipelineId = params?.pipelineId as string;
     const [formData, setFormData] = useState<PreprocessItem | null>(null);
     const [dialogState, setDialogState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
@@ -192,7 +193,7 @@ export default function EditPreprocessPage() {
         const data: PreprocessItem[] = JSON.parse(localStorage.getItem("preprocessData") || "[]");
         const updatedData = data.map(item => (item.id === id ? formData : item));
         localStorage.setItem("preprocessData", JSON.stringify(updatedData));
-        router.push("/crm/pipelines/preprocess");
+        router.push(`/crm/pipelines/${pipelineId}/preprocess`);
     };
     
     const proceedToApprove = () => {
@@ -213,7 +214,7 @@ export default function EditPreprocessPage() {
         const preprocessData: PreprocessItem[] = JSON.parse(localStorage.getItem("preprocessData") || "[]");
         const updatedPreprocess = preprocessData.filter(item => item.id !== id);
         localStorage.setItem("preprocessData", JSON.stringify(updatedPreprocess));
-        router.push("/crm/pipelines/preprocess");
+        router.push(`/crm/pipelines/${pipelineId}/preprocess`);
     };
 
     if (!formData) return <div className="p-8">Loading...</div>;
@@ -236,7 +237,7 @@ export default function EditPreprocessPage() {
                     <fieldset className="p-6 bg-white border rounded-lg shadow-sm"><legend className="text-lg font-semibold text-green-800">Approval Status</legend><div className="mt-4"><div><label className="block font-medium">Request for Approval</label><select name="approval_status" value={formData.approval_status} onChange={handleChange} className="w-full p-2 mt-1 bg-white border rounded"><option value="Modification">Modification</option><option value="Approved">Approved</option></select><p className="text-sm text-gray-500 mt-1">If set to &apos;Approved&apos;, this item will be moved to Post Process upon updating.</p></div></div></fieldset>
 
                     <div className="flex justify-end gap-4 pt-6 mt-4 border-t">
-                        <button type="button" onClick={() => router.push('/crm/pipelines/preprocess')} className="px-6 py-2 font-semibold border rounded bg-gray-100 hover:bg-gray-200">Cancel</button>
+                        <button type="button" onClick={() => router.push(`/crm/pipelines/${pipelineId}/preprocess`)} className="px-6 py-2 font-semibold border rounded bg-gray-100 hover:bg-gray-200">Cancel</button>
                         <button type="submit" className="px-6 py-2 font-semibold text-white bg-green-600 rounded hover:bg-green-700">Update Preprocess</button>
                     </div>
                 </form>

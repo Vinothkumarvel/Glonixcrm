@@ -13,8 +13,10 @@ import {
   Plus,
   Flag,
 } from "lucide-react";
-import { HierarchicalPipeline, pipelineHelpers, STANDARD_PIPELINE_STAGES, ActivityLog } from "@/types/pipeline";
+import { HierarchicalPipeline, pipelineHelpers, STANDARD_PIPELINE_STAGES, type FlatPipeline } from "@/types/pipeline";
 import PipelineTreeView from "./PipelineTreeView";
+import { STORAGE_KEYS } from "@/constants/storage";
+import { readJson, writeJson } from "@/utils/storage";
 
 type NavItem = {
   id: string;
@@ -84,16 +86,15 @@ export default function Sidebar({
   }, [isMobileOpen, onMobileClose]);
 
   useEffect(() => {
-    // Load hierarchical pipelines from localStorage
-    const stored = localStorage.getItem("hierarchicalPipelines");
-    if (stored) {
-      try {
-        const flatPipelines = JSON.parse(stored);
-        const tree = pipelineHelpers.buildTree(flatPipelines);
-        setHierarchicalPipelines(tree);
-      } catch {
+    try {
+      const storedPipelines = readJson<FlatPipeline[]>(STORAGE_KEYS.HIERARCHICAL_PIPELINES, []);
+      if (storedPipelines.length > 0) {
+        setHierarchicalPipelines(pipelineHelpers.buildTree(storedPipelines));
+      } else {
         setHierarchicalPipelines([]);
       }
+    } catch {
+      setHierarchicalPipelines([]);
     }
   }, []);
 
@@ -103,7 +104,7 @@ export default function Sidebar({
     // Save all pipelines to localStorage (including empty ones)
     // We want to keep new pipelines even without items so they can be accessed
     const flatPipelines = pipelineHelpers.flattenTree(updated);
-    localStorage.setItem("hierarchicalPipelines", JSON.stringify(flatPipelines));
+    writeJson(STORAGE_KEYS.HIERARCHICAL_PIPELINES, flatPipelines);
   };
 
   const handleAddPipeline = () => {
@@ -354,12 +355,7 @@ export default function Sidebar({
                     <span>Add Pipeline</span>
                   </button>
 
-                  {/* Standard Pipelines */}
-                  <div className="mt-2">
-                    <div className="text-[10px] text-white/50 uppercase tracking-wider mb-1 px-2">
-                      Standard Pipelines
-                    </div>
-                  </div>
+
 
                   {/* Custom Pipelines Tree - Mobile */}
                   {hierarchicalPipelines.length > 0 && (

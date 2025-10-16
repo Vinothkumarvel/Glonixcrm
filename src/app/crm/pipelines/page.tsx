@@ -2,43 +2,63 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { v4 as uuidv4 } from 'uuid';
+import { pipelineHelpers, type HierarchicalPipeline, type FlatPipeline } from '@/types/pipeline';
+import { STORAGE_KEYS } from '@/constants/storage';
+import { readJson, writeJson } from '@/utils/storage';
+
+const createDefaultPipeline = (): HierarchicalPipeline => {
+  const timestamp = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    name: 'Default Pipeline',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    parentId: null,
+    userId: 'system',
+    userName: 'System Generated',
+    status: 'Pending',
+    activityLogs: [
+      {
+        id: crypto.randomUUID(),
+        action: 'created',
+        timestamp,
+        userId: 'system',
+        userName: 'System',
+        details: 'Default pipeline created automatically'
+      }
+    ],
+    stages: pipelineHelpers.createStandardStages(),
+    children: []
+  };
+};
 
 export default function PipelinesPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Try to load from localStorage
-    const storedPipelines = localStorage.getItem('hierarchicalPipelines');
-    let defaultPipeline = null;
-    
-    if (storedPipelines) {
-      try {
-        const pipelines = JSON.parse(storedPipelines);
-        // Use the first pipeline as default, if any exist
-        if (pipelines && pipelines.length > 0) {
-          defaultPipeline = pipelines[0].id;
-        }
-      } catch (e) {
-        console.error('Error parsing stored pipelines:', e);
+    let targetPipelineId: string | null = null;
+
+    try {
+      const storedPipelines = readJson<FlatPipeline[]>(STORAGE_KEYS.HIERARCHICAL_PIPELINES, []);
+      if (storedPipelines.length > 0) {
+        const topLevel = storedPipelines.find((pipeline) => pipeline.parentId === null);
+        targetPipelineId = (topLevel ?? storedPipelines[0]).id;
+      } else {
+        const defaultPipeline = createDefaultPipeline();
+        const flattened = pipelineHelpers.flattenTree([defaultPipeline]);
+        writeJson(STORAGE_KEYS.HIERARCHICAL_PIPELINES, flattened);
+        targetPipelineId = defaultPipeline.id;
       }
+    } catch (error) {
+      console.error('Failed to initialise pipelines:', error);
+      const defaultPipeline = createDefaultPipeline();
+      const flattened = pipelineHelpers.flattenTree([defaultPipeline]);
+      writeJson(STORAGE_KEYS.HIERARCHICAL_PIPELINES, flattened);
+      targetPipelineId = defaultPipeline.id;
     }
-    
-    // If no pipelines found, create a default one
-    if (!defaultPipeline) {
-      const defaultPipelineId = uuidv4();
-      const defaultPipelines = [{
-        id: defaultPipelineId,
-        name: 'Default Pipeline',
-        parentId: null
-      }];
-      localStorage.setItem('hierarchicalPipelines', JSON.stringify(defaultPipelines));
-      defaultPipeline = defaultPipelineId;
-    }
-    
-    // Redirect to the default pipeline's RFQ
-    if (defaultPipeline) {
-      router.push(`/crm/pipelines/${defaultPipeline}/rfq`);
+
+    if (targetPipelineId) {
+      router.push(`/crm/pipelines/${targetPipelineId}/rfq`);
     }
   }, [router]);
 

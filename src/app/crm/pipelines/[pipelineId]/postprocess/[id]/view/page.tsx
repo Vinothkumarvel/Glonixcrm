@@ -63,13 +63,13 @@ const LoadingSkeleton = () => (
     </div>
 );
 
-const NotFound = () => {
+const NotFound = ({ pipelineId }: { pipelineId: string }) => {
     const router = useRouter();
     return (
         <div className="text-center p-10">
             <h2 className="text-2xl font-bold text-gray-700 mb-4">Project Not Found</h2>
             <p className="text-gray-500 mb-6">The project you are looking for does not exist.</p>
-            <button onClick={() => router.push("/crm/pipelines/postprocess")} className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700">Return to List</button>
+            <button onClick={() => router.push(`/crm/pipelines/${pipelineId}/postprocess`)} className="px-6 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700">Return to List</button>
         </div>
     );
 };
@@ -85,6 +85,7 @@ export default function ViewPostProcessPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
+    const pipelineId = params?.pipelineId as string;
     const [item, setItem] = useState<PostProcessItem | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -118,7 +119,7 @@ export default function ViewPostProcessPage() {
     };
 
     if (loading) return <LoadingSkeleton />;
-    if (!item) return <NotFound />;
+    if (!item) return <NotFound pipelineId={pipelineId} />;
 
     const projectStatus = getProjectStatus(item);
 
@@ -130,7 +131,7 @@ export default function ViewPostProcessPage() {
                         <h1 className="text-3xl font-bold text-green-700">Post Process Details</h1>
                         <p className="text-gray-500 mt-1">Viewing project for: <span className="font-semibold text-gray-700">{item.company_name}</span></p>
                     </div>
-                    <button onClick={() => router.push('/crm/pipelines/postprocess')} className="px-5 py-2 text-white font-semibold bg-green-600 rounded-lg hover:bg-green-700">Back to List</button>
+                    <button onClick={() => router.push(`/crm/pipelines/${pipelineId}/postprocess`)} className="px-5 py-2 text-white font-semibold bg-green-600 rounded-lg hover:bg-green-700">Back to List</button>
                 </header>
                 
                 <main className="space-y-8">

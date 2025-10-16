@@ -3,7 +3,9 @@
 import { useRouter, usePathname, useParams } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { STANDARD_PIPELINE_STAGES, HierarchicalPipeline, pipelineHelpers } from "@/types/pipeline";
+import { STANDARD_PIPELINE_STAGES, HierarchicalPipeline, pipelineHelpers, type FlatPipeline } from "@/types/pipeline";
+import { STORAGE_KEYS } from "@/constants/storage";
+import { readJson } from "@/utils/storage";
 
 // Convert stage names to URL-friendly slugs that match the folder structure
 const stageToSlug = (stage: string): string => {
@@ -38,15 +40,12 @@ export default function PipelineNavbar() {
 
   useEffect(() => {
     // Load custom pipelines from localStorage
-    const stored = localStorage.getItem("hierarchicalPipelines");
-    if (stored) {
-      try {
-        const flatPipelines = JSON.parse(stored);
-        const tree = pipelineHelpers.buildTree(flatPipelines);
-        
+    try {
+      const storedPipelines = readJson<FlatPipeline[]>(STORAGE_KEYS.HIERARCHICAL_PIPELINES, []);
+      if (storedPipelines.length > 0) {
+        const tree = pipelineHelpers.buildTree(storedPipelines);
         setAllPipelines(tree);
-        
-        // Check if we're viewing a custom pipeline
+
         const pipelineId = params?.pipelineId as string;
         if (pipelineId) {
           const found = pipelineHelpers.findById(tree, pipelineId);
@@ -54,10 +53,13 @@ export default function PipelineNavbar() {
         } else {
           setCurrentPipeline(null);
         }
-      } catch {
+      } else {
         setAllPipelines([]);
         setCurrentPipeline(null);
       }
+    } catch {
+      setAllPipelines([]);
+      setCurrentPipeline(null);
     }
   }, [pathname, params]); // Reload when route changes
 
